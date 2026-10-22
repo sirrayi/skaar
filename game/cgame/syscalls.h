@@ -33,6 +33,8 @@ void SendClientCommand(const char* text);
 void SendConsoleCommand(const char* text);
 void UpdateScreen();
 bool FileRead(const char* path, std::string& out);
+bool FileWrite(const char* path, const std::string& data, bool append);
+int RealTime(qtime_t* t);
 
 void CM_LoadMap(const char* name);
 void CM_BoxTrace(trace_t* results, const vec3_t start, const vec3_t end, const vec3_t mins, const vec3_t maxs,
@@ -41,6 +43,7 @@ int CM_PointContents(const vec3_t point, clipHandle_t model);
 
 void R_LoadWorldMap(const char* name);
 qhandle_t R_RegisterShader(const char* name);
+qhandle_t R_RegisterModel(const char* name);
 void R_ClearScene();
 void R_AddRefEntityToScene(const refEntity_t* ent);
 void R_RenderScene(const refdef_t* fd);
@@ -56,5 +59,10 @@ int GetCurrentCmdNumber();
 bool GetUserCmd(int cmdNumber, usercmd_t* cmd);
 void SetUserCmdValue(int stateValue, float sensitivityScale);
 int Key_GetCatcher();
+void Key_SetCatcher(int catcher);
+bool Key_IsDown(int key);
+
+sfxHandle_t S_RegisterSound(const char* name, bool compressed);
+void S_StartLocalSound(sfxHandle_t sfx, int channel);
 
 }  // namespace cg::trap

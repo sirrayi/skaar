@@ -67,6 +67,19 @@ bool FileRead(const char* path, std::string& out) {
     return true;
 }
 
+bool FileWrite(const char* path, const std::string& data, bool append) {
+    fileHandle_t f;
+    g_syscall(CG_FS_FOPENFILE, path, &f, append ? FS_APPEND : FS_WRITE);
+    if (!f) {
+        return false;
+    }
+    g_syscall(CG_FS_WRITE, data.data(), static_cast<int>(data.size()), f);
+    g_syscall(CG_FS_FCLOSEFILE, f);
+    return true;
+}
+
+int RealTime(qtime_t* t) { return static_cast<int>(g_syscall(CG_REAL_TIME, t)); }
+
 void CM_LoadMap(const char* name) { g_syscall(CG_CM_LOADMAP, name); }
 
 void CM_BoxTrace(trace_t* results, const vec3_t start, const vec3_t end, const vec3_t mins, const vec3_t maxs,
@@ -80,6 +93,7 @@ int CM_PointContents(const vec3_t point, clipHandle_t model) {
 
 void R_LoadWorldMap(const char* name) { g_syscall(CG_R_LOADWORLDMAP, name); }
 qhandle_t R_RegisterShader(const char* name) { return static_cast<qhandle_t>(g_syscall(CG_R_REGISTERSHADER, name)); }
+qhandle_t R_RegisterModel(const char* name) { return static_cast<qhandle_t>(g_syscall(CG_R_REGISTERMODEL, name)); }
 void R_ClearScene() { g_syscall(CG_R_CLEARSCENE); }
 void R_AddRefEntityToScene(const refEntity_t* ent) { g_syscall(CG_R_ADDREFENTITYTOSCENE, ent); }
 void R_RenderScene(const refdef_t* fd) { g_syscall(CG_R_RENDERSCENE, fd); }
@@ -110,5 +124,13 @@ void SetUserCmdValue(int stateValue, float sensitivityScale) {
 }
 
 int Key_GetCatcher() { return static_cast<int>(g_syscall(CG_KEY_GETCATCHER)); }
+void Key_SetCatcher(int catcher) { g_syscall(CG_KEY_SETCATCHER, catcher); }
+bool Key_IsDown(int key) { return g_syscall(CG_KEY_ISDOWN, key) != 0; }
+
+sfxHandle_t S_RegisterSound(const char* name, bool compressed) {
+    return static_cast<sfxHandle_t>(g_syscall(CG_S_REGISTERSOUND, name, compressed ? qtrue : qfalse));
+}
+
+void S_StartLocalSound(sfxHandle_t sfx, int channel) { g_syscall(CG_S_STARTLOCALSOUND, sfx, channel); }
 
 }  // namespace cg::trap
