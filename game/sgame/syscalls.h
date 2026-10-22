@@ -48,6 +48,7 @@ int PointContents(const vec3_t point, int passEntityNum);
 void GetUsercmd(int clientNum, usercmd_t* cmd);
 bool GetEntityToken(char* buffer, int size);
 bool FileRead(const char* path, std::string& out);
+bool FileWrite(const char* path, const std::string& data, bool append);
 std::vector<std::string> FileList(const char* dir, const char* extension);
 
 }  // namespace sg::trap

@@ -97,6 +97,17 @@ bool FileRead(const char* path, std::string& out) {
     return true;
 }
 
+bool FileWrite(const char* path, const std::string& data, bool append) {
+    fileHandle_t f;
+    g_syscall(G_FS_FOPEN_FILE, path, &f, append ? FS_APPEND : FS_WRITE);
+    if (!f) {
+        return false;
+    }
+    g_syscall(G_FS_WRITE, data.data(), static_cast<int>(data.size()), f);
+    g_syscall(G_FS_FCLOSE_FILE, f);
+    return true;
+}
+
 std::vector<std::string> FileList(const char* dir, const char* extension) {
     static char buf[64 * 1024];
     const int count = static_cast<int>(g_syscall(G_FS_GETFILELIST, dir, extension, buf, sizeof(buf)));
