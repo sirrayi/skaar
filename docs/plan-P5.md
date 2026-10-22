@@ -30,15 +30,16 @@ Constants, behavior and sources: `docs/cpm-physics.md`.
     jump 270, double jump 370 inside 400 ms, ceiling-bonk double jump, ramp jump `max(vz, 0) + 270`, full downhill jump.
   - **Determinism**, JSON parsing and validation, registry, configstring round-trip, shipped files == built-ins.
   - Clean under UBSan (safe build).
-- [x] `data/maps-src/movement.json`: straight, stairs, 40/80 ledges, low-ceiling tunnel (boxes only).
+- [x] `data/maps-src/movement.json`: straight, stairs, 40/80 ledges, low-ceiling tunnel, ramps, jump pad.
 - [x] Wiring (skaar-47, 6ded8209): sgame/cgame call `skaar::move::Pmove`, `g_movement` cvar, configstring sync,
   `bg_pmove.c`/`bg_slidemove.c` dropped from `modules.cmake`. Smoke PASS. In-game with `cg_showMiss 1`: walk, jump,
   strafe-only air, double jump, and a live `g_movement vq3` switch give zero prediction misses.
 - [ ] Feel check by the human: hard strafe-only turns, forward-only steering, the 80-unit ledge by double jump.
 - [x] Scenario key `"player": {"ruleset": "cpm"}` (skaar-07, 2bb68cdb): the ui sets `g_movement` on Start;
   `scenarios/air-track.json` uses cpm. `sk_start <id>` sets it too (f93a6e90).
-- [ ] Ramps (~20°, ~35°) and a jump pad in the movement map: needs sloped brushes and trigger brush entities in
-  `tools/mapc` (skaar-47 OK'd skaar-31 editing mapc for this), plus trigger_push handling in sgame.
+- [x] Ramps and brush entities in `tools/mapc` (docs/mapc.md); existing maps compile byte-identically. The movement map
+  has 20° and 35° ramps, and a trigger_push + target_position jump pad.
+- [ ] Jump pad game side: sgame trigger_push touch + cgame prediction (skaar-47).
 - [ ] UI: pick the ruleset in the lobby (P2 screens, skaar-07). Final labels need the user's OK.
 
 ## How to run
@@ -48,6 +49,7 @@ Constants, behavior and sources: `docs/cpm-physics.md`.
 ## File claims (parallel sessions, see CLAUDE.md)
 - **skaar-31** (this plan, confirmed with skaar-47 2026-10-22): `docs/plan-P5.md`, `docs/cpm-physics.md`,
   `game/shared/move_*.{h,cpp}`, `data/base/rulesets/*`, `data/maps-src/movement.json`, `tools/movetest/*`,
+  ramp/brush-entity changes in `tools/mapc/*` (mapc is otherwise skaar-47's),
   the `skaar_movetest` block at the end of `cmake/skaar/tests.cmake`, plus `README.md`, `tools/textart.py`.
 - Wiring into `game/sgame/*`, `game/cgame/*` and `cmake/skaar/modules.cmake` is applied by skaar-47 from a patch skaar-31 sends.
 - Scenario key `"player": {"ruleset": ...}` is parsed by skaar-07 in `scenario.{h,cpp}`.

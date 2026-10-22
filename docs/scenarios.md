@@ -2,6 +2,10 @@
 
 Aim-trainer scenarios are JSON files. Anyone can add or tune one without touching code.
 
+The quickest way is in game: Play › pick a scenario › Customize. The editor tunes duration, fire mode,
+targets, size, health, lifetime, distance, spread, movement, speed and your own movement and physics. It saves a
+copy as `scenarios/<id>-mine.json` in your home dir. For anything it doesn't cover, edit that file by hand.
+
 - Built-in: `data/base/scenarios/<id>.json` (`<id>` is the file name and shows up in stats).
 - Your own: put the file in your home dir, `~/Library/Application Support/Skaar/base/scenarios/` on macOS
   (`~/.local/share/Skaar/base/scenarios/` on Linux; `~/.skaar/base/` if that folder already exists). The game reads both. A home file with a built-in's name overrides it.

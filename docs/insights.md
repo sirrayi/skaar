@@ -11,7 +11,7 @@ Open it from the main menu (Insights), the pause menu, `I` on the end-of-run sum
 |---|---|
 | Overview | Streak (days in a row with a run), today, this session (runs with gaps under 30 min), all time, personal bests in the last 7 days. The latest run with a verdict against your best and average. Benchmark standing and the scenario to focus on next. Recent runs. |
 | Scenarios | Per scenario: best, average of the last 10, trend (last 10 vs the 10 before), runs, time played. Score per run (hover a point for its date, click to open the run), accuracy and mean TTK over runs. |
-| Run | One run: score and verdict, accuracy, kills, mean TTK, hits, cm/360 and FOV at the time. Time to kill over the run (with a rolling mean, and whether you slowed down), shot dispersion around the target in target radii (mean point of impact, drift direction), the aim path (view angles over the whole run, kills marked), view speed. Replay plays it back in game. |
+| Run | One run: score and verdict, accuracy, kills, mean TTK, hits, cm/360 and FOV at the time. Time to kill over the run (with a rolling mean, and whether you slowed down), shot dispersion around the target in target radii (mean point of impact, drift direction), the aim path (view angles over the whole run, kills marked), view speed. Replay plays it back in game. Every number shows its difference to a comparison run: your best on the scenario, or a run you pinned with Pin to compare. That run's TTK or on-target curve is drawn faint behind this one's. |
 | Benchmarks | Each scenario's best, tier and progress on the tier ladder. The focus pick (your lowest standing, ties go to the least recently played) and your weakest category. |
 
 ## Replays
