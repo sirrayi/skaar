@@ -35,6 +35,9 @@ struct gclient_t {
     bool spawned;
     bool noclip;
     bool frozen;    // sk_freeze: position locked, view still turns (static scenarios)
+    bool dead;
+    int respawnAllowedTime;  // level.time after which attack/jump respawns
+    int respawnForcedTime;   // level.time at which respawn happens anyway
     usercmd_t cmd;  // last command, for view angle deltas on spawn
     char name[36];
 };
@@ -69,8 +72,10 @@ void SpawnEntitiesFromString();
 gentity_t* Spawn();               // a free non-client entity (Com_Error if the level is full)
 void FreeEntity(gentity_t* ent);  // unlink and release
 
-// clients.cpp (triggers)
+// clients.cpp (triggers, life cycle)
 void TouchTriggers(gentity_t& ent, gclient_t& client);
+void Kill(int clientNum);     // health <= 0: PM_DEAD, respawn on attack/jump after 1 s, forced after 3 s
+void Respawn(int clientNum);  // immediately, at the next spawn point
 
 // clients.cpp
 const char* ClientConnect(int clientNum, bool firstTime, bool isBot);

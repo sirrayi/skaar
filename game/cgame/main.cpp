@@ -108,7 +108,7 @@ void Shutdown() {
 // Console commands the engine offers us first; true if handled
 bool ConsoleCommand() {
     const std::string cmd = trap::Argv(0);
-    if (trainer::ConsoleCommand(cmd.c_str())) {
+    if (trainer::ConsoleCommand(cmd.c_str()) || weapons::ConsoleCommand(cmd.c_str())) {
         return true;
     }
     if (!Q_stricmp(cmd.c_str(), "viewpos")) {

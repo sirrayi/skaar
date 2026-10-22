@@ -163,14 +163,41 @@ void ClientCommand(int clientNum) {
         // sent by the aim trainer for scenarios where the player doesn't move
         client.frozen = atoi(trap::Argv(1).c_str()) != 0;
         Com_DPrintf("sgame: client %d %s\n", clientNum, client.frozen ? "frozen" : "unfrozen");
-    } else if (!Q_stricmp(cmd.c_str(), "kill") || !Q_stricmp(cmd.c_str(), "respawn") ||
-               !Q_stricmp(cmd.c_str(), "sk_restart")) {
+    } else if (!Q_stricmp(cmd.c_str(), "kill")) {
+        if (!client.dead) {
+            Kill(clientNum);
+        }
+    } else if (!Q_stricmp(cmd.c_str(), "respawn") || !Q_stricmp(cmd.c_str(), "sk_restart")) {
         // sk_restart reaches the server only when the cgame trainer didn't handle it
         // (no scenario loaded): fall back to a respawn
         Spawn(clientNum);
     } else if (!mode::ClientCommand(clientNum, cmd.c_str())) {
         SendPrint(clientNum, skaar::Va("unknown command: %s\n", cmd.c_str()));
     }
+}
+
+void Kill(int clientNum) {
+    gclient_t& client = g_clients[clientNum];
+    gentity_t& ent = EntityFor(clientNum);
+    if (!client.spawned || client.dead) {
+        return;
+    }
+    client.dead = true;
+    client.respawnAllowedTime = level.time + 1000;
+    client.respawnForcedTime = level.time + 3000;
+    if (client.ps.stats[STAT_HEALTH] > 0) {
+        client.ps.stats[STAT_HEALTH] = 0;
+    }
+    client.ps.pm_type = PM_DEAD;
+    ent.r.contents = CONTENTS_CORPSE;
+    trap::LinkEntity(&ent);
+    Com_DPrintf("sgame: client %d died\n", clientNum);
+}
+
+void Respawn(int clientNum) {
+    gclient_t& client = g_clients[clientNum];
+    client.dead = false;
+    Spawn(clientNum);
 }
 
 void ClientThink(int clientNum) {
@@ -204,7 +231,19 @@ void ClientThink(int clientNum) {
         ucmd.serverTime = ((ucmd.serverTime + msec - 1) / msec) * msec;
     }
 
-    client.ps.pm_type = client.noclip ? PM_NOCLIP : client.frozen ? PM_FREEZE : PM_NORMAL;
+    if (client.dead) {
+        // respawn on attack/jump once allowed, or anyway after the forced delay
+        const bool wants = (ucmd.buttons & BUTTON_ATTACK) || ucmd.upmove > 0;
+        if (level.time >= client.respawnForcedTime || (wants && level.time >= client.respawnAllowedTime)) {
+            Respawn(clientNum);
+            return;
+        }
+    }
+
+    client.ps.pm_type = client.dead     ? PM_DEAD
+                        : client.noclip ? PM_NOCLIP
+                        : client.frozen ? PM_FREEZE
+                                        : PM_NORMAL;
     client.ps.gravity = cvars.gravity.integer;
     client.ps.speed = cvars.speed.integer;
 

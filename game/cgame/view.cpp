@@ -116,8 +116,9 @@ void DrawActiveFrame(int serverTime, bool /*demoPlayback*/) {
     }
     cg.realTime = trap::Milliseconds();
 
-    // mouse sensitivity scale (zoom later); without this the engine ignores the mouse
-    trap::SetUserCmdValue(0, 1.0f);
+    // selected weapon (goes into every usercmd) and mouse sensitivity scale
+    // (zoom later); without this call the engine ignores the mouse
+    trap::SetUserCmdValue(weapons::SelectedWeapon(), 1.0f);
 
     ProcessSnapshots();
     if (!cg.snap || (cg.snap->snapFlags & SNAPFLAG_NOT_ACTIVE)) {

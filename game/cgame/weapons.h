@@ -26,4 +26,10 @@ void PlayerEvent(int event, int eventParm, const playerState_t& ps);
 // Each frame after the world, next to trainer::DrawHud.
 void DrawHud();
 
+// The weapon the player has selected, sent with every user command (0 = none).
+int SelectedWeapon();
+
+// Console commands (weapon <n>, weapnext, weapprev...), offered after the trainer's; true if handled.
+bool ConsoleCommand(const char* cmd);
+
 }  // namespace cg::weapons
