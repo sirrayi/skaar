@@ -1,0 +1,61 @@
+# Skaar CI: build our configuration and run the smoke test (unit tests + a
+# 20 s headless dedicated server under sanitizers) on every push and PR.
+# Replaces upstream ioq3's build.yml, which built configurations Skaar turns
+# off (QVMs, missionpack). Release packaging comes with Phase 2 E.
+name: skaar
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    name: macOS arm64
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: brew install ninja ccache
+      - name: Build (fast)
+        run: ./scripts/build.sh fast
+      - name: Smoke (safe build, unit tests, dedicated server)
+        run: ./scripts/smoke.sh
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-macos
+          path: logs/
+
+  linux:
+    name: Linux x86_64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache libsdl2-dev
+      - name: Build (fast)
+        run: ./scripts/build.sh fast
+      - name: Smoke (safe build, unit tests, dedicated server)
+        run: ./scripts/smoke.sh
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-linux
+          path: logs/
+
+  windows:
+    name: Windows x64 (build only)
+    runs-on: windows-2022
+    # Allowed to fail until the MSVC pass in Phase 2: our scripts are POSIX
+    # and /W4 hasn't been cleaned up yet (SKAAR_WERROR=OFF meanwhile)
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DSKAAR_WERROR=OFF
+      - name: Build
+        run: cmake --build build --config RelWithDebInfo

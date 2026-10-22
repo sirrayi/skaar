@@ -15,10 +15,18 @@ endif()
 
 # Warnings for code we own: new files under code/, plus game/, tools/, tests/.
 # Upstream ioq3 sources keep their own flags (see cmake/compilers/gnu.cmake).
+# SKAAR_WERROR=OFF keeps the warnings but doesn't fail on them (Windows CI
+# until the MSVC warnings are cleaned up).
+option(SKAAR_WERROR "Treat warnings in Skaar's own code as errors" ON)
 if(MSVC)
-    set(SKAAR_STRICT_FLAGS /W4 /WX)
+    set(SKAAR_STRICT_FLAGS /W4)
+    set(SKAAR_WERROR_FLAG /WX)
 else()
-    set(SKAAR_STRICT_FLAGS -Wall -Wextra -Werror)
+    set(SKAAR_STRICT_FLAGS -Wall -Wextra)
+    set(SKAAR_WERROR_FLAG -Werror)
+endif()
+if(SKAAR_WERROR)
+    list(APPEND SKAAR_STRICT_FLAGS ${SKAAR_WERROR_FLAG})
 endif()
 
 function(skaar_strict_sources)
