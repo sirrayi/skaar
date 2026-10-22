@@ -51,6 +51,8 @@ unsigned int CON_LogWrite( const char *in );
 unsigned int CON_LogRead( char *out, unsigned int outSize );
 
 char *Sys_BinaryPath( void );
+// skaar: crash report writer (sys_crash.c)
+const char *Sys_WriteCrashReport( int sig, const char *reason );
 char *Sys_BinaryPathRelative( const char *relative );
 
 #ifdef __APPLE__

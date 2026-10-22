@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "q_shared.h"
 #include "qcommon.h"
+#include "dev.h"
 #include <setjmp.h>
 #ifndef _WIN32
 #include <netinet/in.h>
@@ -184,6 +185,9 @@ void QDECL Com_Printf( const char *fmt, ... ) {
 		//*rd_buffer = 0;
 		return;
 	}
+
+	// skaar: feed warnings/errors to the in-game toasts
+	Dev_OnPrint( msg );
 
 #ifndef DEDICATED
 	CL_ConsolePrint( msg );
@@ -2713,6 +2717,9 @@ void Com_Init( char *commandLine ) {
 
 	Com_InitJournaling();
 
+	// skaar: developer diagnostics (toasts, spikes, dev_reload, crash paths)
+	Dev_Init();
+
 	// Add some commands here already so users can use them from config files
 	Cmd_AddCommand ("setenv", Com_Setenv_f);
 	if (com_developer && com_developer->integer)
@@ -3092,6 +3099,8 @@ void Com_Frame( void ) {
 	int		timeBeforeEvents;
 	int		timeBeforeClient;
 	int		timeAfter;
+	// skaar: microsecond frame breakdown for Dev_FrameEnd spike logging
+	long long	usWorkStart, usServerStart, usServerEnd, usClientStart, usEnd;
   
 
 	if ( setjmp (abortframe) ) {
@@ -3163,6 +3172,8 @@ void Com_Frame( void ) {
 		else
 			NET_Sleep(timeVal - 1);
 	} while(Com_TimeVal(minMsec));
+
+	usWorkStart = Dev_Microseconds();
 	
 	IN_Frame();
 
@@ -3189,7 +3200,9 @@ void Com_Frame( void ) {
 		timeBeforeServer = Sys_Milliseconds ();
 	}
 
+	usServerStart = Dev_Microseconds();
 	SV_Frame( msec );
+	usServerEnd = Dev_Microseconds();
 
 	// if "dedicated" has been modified, start up
 	// or shut down the client system.
@@ -3227,12 +3240,14 @@ void Com_Frame( void ) {
 		timeBeforeClient = Sys_Milliseconds ();
 	}
 
+	usClientStart = Dev_Microseconds();
 	CL_Frame( msec );
 
 	if ( com_speeds->integer ) {
 		timeAfter = Sys_Milliseconds ();
 	}
 #else
+	usClientStart = Dev_Microseconds();
 	if ( com_speeds->integer ) {
 		timeAfter = Sys_Milliseconds ();
 		timeBeforeEvents = timeAfter;
@@ -3242,6 +3257,10 @@ void Com_Frame( void ) {
 
 
 	NET_FlushPacketQueue();
+
+	usEnd = Dev_Microseconds();
+	Dev_FrameEnd( (int)( ( usServerStart - usWorkStart ) + ( usClientStart - usServerEnd ) ),
+		(int)( usServerEnd - usServerStart ), (int)( usEnd - usClientStart ) );
 
 	//
 	// report timing information

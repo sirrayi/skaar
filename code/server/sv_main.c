@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "server.h"
+#include "../qcommon/dev.h"
 
 #ifdef USE_VOIP
 cvar_t *sv_voip;
@@ -1140,13 +1141,21 @@ void SV_Frame( int msec ) {
 	if (com_dedicated->integer) SV_BotFrame (sv.time);
 
 	// run the game simulation in chunks
-	while ( sv.timeResidual >= frameMsec ) {
-		sv.timeResidual -= frameMsec;
-		svs.time += frameMsec;
-		sv.time += frameMsec;
+	{
+		// skaar: report a falling-behind tick loop (Dev_ServerTicks)
+		int backlog = sv.timeResidual, ticks = 0;
 
-		// let everything in the world think and move
-		VM_Call (gvm, GAME_RUN_FRAME, sv.time);
+		while ( sv.timeResidual >= frameMsec ) {
+			sv.timeResidual -= frameMsec;
+			svs.time += frameMsec;
+			sv.time += frameMsec;
+
+			// let everything in the world think and move
+			VM_Call (gvm, GAME_RUN_FRAME, sv.time);
+			ticks++;
+		}
+
+		Dev_ServerTicks( ticks, backlog, frameMsec );
 	}
 
 	if ( com_speeds->integer ) {

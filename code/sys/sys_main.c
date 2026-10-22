@@ -770,6 +770,13 @@ void Sys_SigHandler( int signal )
 	else
 	{
 		signalcaught = qtrue;
+		// skaar: crash report before shutdown can fail on corrupted state
+		if( signal != SIGTERM && signal != SIGINT
+#ifdef SIGHUP
+			&& signal != SIGHUP
+#endif
+			)
+			Sys_WriteCrashReport( signal, NULL );
 		VM_Forced_Unload_Start();
 #ifndef DEDICATED
 		CL_Shutdown(va("Received signal %d", signal), qtrue, qtrue);
@@ -793,6 +800,11 @@ int main( int argc, char **argv )
 {
 	int   i;
 	char  commandLine[ MAX_STRING_CHARS ] = { 0 };
+
+#ifdef SKAAR_DEV
+	// skaar: scripts/dev.sh pipes stdout through tee; keep the log live
+	setvbuf( stdout, NULL, _IOLBF, 0 );
+#endif
 #ifdef PROTOCOL_HANDLER
 	char *protocolCommand = NULL;
 #endif

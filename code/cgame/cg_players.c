@@ -683,11 +683,12 @@ static void CG_LoadClientInfo( int clientNum, clientInfo_t *ci ) {
 				Q_strncpyz(teamname, DEFAULT_REDTEAM_NAME, sizeof(teamname) );
 			}
 			if ( !CG_RegisterClientModelname( ci, DEFAULT_TEAM_MODEL, ci->skinName, DEFAULT_TEAM_HEAD, ci->skinName, teamname ) ) {
-				CG_Error( "DEFAULT_TEAM_MODEL / skin (%s/%s) failed to register", DEFAULT_TEAM_MODEL, ci->skinName );
+				CG_Printf( S_COLOR_YELLOW "WARNING: DEFAULT_TEAM_MODEL / skin (%s/%s) failed to register\n", DEFAULT_TEAM_MODEL, ci->skinName );
 			}
 		} else {
 			if ( !CG_RegisterClientModelname( ci, DEFAULT_MODEL, "default", DEFAULT_MODEL, "default", teamname ) ) {
-				CG_Error( "DEFAULT_MODEL (%s) failed to register", DEFAULT_MODEL );
+				// skaar: no player models ship yet; the stock cgame is replaced in P1
+				CG_Printf( S_COLOR_YELLOW "WARNING: DEFAULT_MODEL (%s) failed to register\n", DEFAULT_MODEL );
 			}
 		}
 		modelloaded = qfalse;

@@ -46,7 +46,8 @@ endif()
 # Try to enable LTO by default
 include(CheckIPOSupported)
 check_ipo_supported(RESULT IPO_SUPPORTED)
-if(IPO_SUPPORTED)
+# skaar: dev builds pass -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF for faster links
+if(IPO_SUPPORTED AND NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
 endif()
@@ -101,6 +102,7 @@ endif()
 include(compilers/all)
 include(platforms/all)
 include(libraries/all)
+include(skaar/dev)
 
 include(server)
 include(renderer_gl1)
@@ -112,6 +114,7 @@ if(BUILD_MISSIONPACK)
 endif()
 
 include(skaar/data)
+include(skaar/tools)
 
 include(post_configure)
 include(installer)

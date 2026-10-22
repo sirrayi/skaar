@@ -1,0 +1,26 @@
+// Test room: the default dev/smoke-test map. Compiled by tools/mapc (docs/mapc.md).
+{
+  "name": "testroom",
+  "message": "Skaar Test Room",
+  "materials": {
+    "floor": "textures/skaar/grid_floor",
+    "wall": "textures/skaar/grid_wall",
+    "ceiling": "textures/skaar/grid_ceiling",
+    "block": "textures/skaar/grid_block"
+  },
+  "light": { "ambient": 0.5, "sun": 0.5, "sunDir": [0.4, 0.25, -1] },
+  "rooms": [
+    { "min": [-1024, -1024, 0], "max": [1024, 1024, 512], "wall": 32,
+      "floor": "floor", "walls": "wall", "ceiling": "ceiling" }
+  ],
+  "brushes": [
+    { "min": [384, -64, 0], "max": [512, 64, 128], "material": "block" },
+    { "min": [-512, 256, 0], "max": [-384, 384, 64], "material": "block" },
+    { "min": [-128, -640, 0], "max": [128, -512, 32], "material": "block" },
+    { "min": [-128, -640, 32], "max": [128, -576, 64], "material": "block" }
+  ],
+  "entities": [
+    { "classname": "info_player_deathmatch", "origin": [0, 0, 40], "angle": 0 },
+    { "classname": "info_player_deathmatch", "origin": [-600, -600, 40], "angle": 45 }
+  ]
+}

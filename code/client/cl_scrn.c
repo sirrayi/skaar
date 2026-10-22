@@ -546,6 +546,9 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 	if ( cl_debuggraph->integer || cl_timegraph->integer || cl_debugMove->integer ) {
 		SCR_DrawDebugGraph ();
 	}
+
+	// skaar: dev toasts, error panel and overlay on top of everything
+	CL_DevDraw();
 }
 
 /*

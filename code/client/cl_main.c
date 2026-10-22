@@ -3181,6 +3181,9 @@ void CL_InitRenderer( void ) {
 	cls.consoleShader = re.RegisterShader( "console" );
 	g_console_field_width = cls.glconfig.vidWidth / g_smallchar_width - 2;
 	g_consoleField.widthInChars = g_console_field_width;
+
+	// skaar: GPU string for crash reports, ignore the restart hitch
+	CL_DevOnRendererStarted();
 }
 
 /*
@@ -3721,6 +3724,7 @@ void CL_Init( void ) {
 	Cmd_AddCommand ("clientinfo", CL_Clientinfo_f);
 	Cmd_AddCommand ("snd_restart", CL_Snd_Restart_f);
 	Cmd_AddCommand ("vid_restart", CL_Vid_Restart_f);
+	CL_DevInit();	// skaar
 	Cmd_AddCommand ("disconnect", CL_Disconnect_f);
 	Cmd_AddCommand ("record", CL_Record_f);
 	Cmd_AddCommand ("demo", CL_PlayDemo_f);

@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "server.h"
+#include "../qcommon/dev.h"
 
 
 /*
@@ -604,6 +605,9 @@ void SV_SpawnServer( char *server, qboolean killBots ) {
 	SV_Heartbeat_f();
 
 	Hunk_SetMark();
+
+	// skaar: dev diagnostics + logs/last-session.cfg
+	Dev_OnMapLoaded( server );
 
 #ifndef DEDICATED
 	if ( com_dedicated->integer ) {

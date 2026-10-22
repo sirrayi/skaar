@@ -578,6 +578,14 @@ void	SCR_DrawNamedPic( float x, float y, float width, float height, const char *
 void	SCR_DrawBigString( int x, int y, const char *s, float alpha, qboolean noColorEscape );			// draws a string with embedded color control characters with fade
 void	SCR_DrawBigStringColor( int x, int y, const char *s, vec4_t color, qboolean noColorEscape );	// ignores embedded color control characters
 void	SCR_DrawSmallStringExt( int x, int y, const char *string, float *setColor, qboolean forceColor, qboolean noColorEscape );
+
+//
+// cl_dev.c (skaar developer overlay)
+//
+void	CL_DevInit( void );
+void	CL_DevDraw( void );
+void	CL_DevOnRendererStarted( void );
+void	CL_DevSensSample( float rawCounts, float yawDegrees );
 void	SCR_DrawSmallChar( int x, int y, int ch );
 
 

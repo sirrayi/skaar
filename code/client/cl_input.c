@@ -436,6 +436,7 @@ CL_MouseMove
 void CL_MouseMove(usercmd_t *cmd)
 {
 	float mx, my;
+	float rawMx;	// skaar: unscaled counts for sens_test
 
 	// allow mouse smoothing
 	if (m_filter->integer)
@@ -455,6 +456,8 @@ void CL_MouseMove(usercmd_t *cmd)
 
 	if (mx == 0.0f && my == 0.0f)
 		return;
+
+	rawMx = mx;
 	
 	if (cl_mouseAccel->value != 0.0f)
 	{
@@ -509,6 +512,8 @@ void CL_MouseMove(usercmd_t *cmd)
 		cmd->rightmove = ClampChar(cmd->rightmove + m_side->value * mx);
 	else
 		cl.viewangles[YAW] -= m_yaw->value * mx;
+
+	CL_DevSensSample( rawMx, in_strafe.active ? 0.0f : m_yaw->value * mx );
 
 	if ((in_mlooking || cl_freelook->integer) && !in_strafe.active)
 		cl.viewangles[PITCH] += m_pitch->value * my;

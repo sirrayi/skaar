@@ -29,6 +29,8 @@ set(COMMON_SOURCES
     ${SOURCE_DIR}/qcommon/vm_powerpc.c
     ${SOURCE_DIR}/qcommon/vm_sparc.c
     ${SOURCE_DIR}/qcommon/vm_x86.c
+    ${SOURCE_DIR}/qcommon/dev.c
+    ${SOURCE_DIR}/qcommon/dev_assert.c
 )
 
 disable_warnings(
@@ -42,6 +44,7 @@ set(SYSTEM_SOURCES
     ${SOURCE_DIR}/sys/con_log.c
     ${SOURCE_DIR}/sys/sys_autoupdater.c
     ${SOURCE_DIR}/sys/sys_main.c
+    ${SOURCE_DIR}/sys/sys_crash.c
     ${SYSTEM_PLATFORM_SOURCES}
 )
 

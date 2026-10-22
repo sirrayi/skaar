@@ -121,6 +121,7 @@ set(UI_QVM_SOURCES ${SOURCE_DIR}/ui/ui_syscalls.asm)
 set(GAME_MODULE_SHARED_SOURCES
     ${SOURCE_DIR}/qcommon/q_math.c
     ${SOURCE_DIR}/qcommon/q_shared.c
+    ${SOURCE_DIR}/qcommon/dev_assert.c
 )
 
 set(CGAME_SOURCES_BASEGAME ${CGAME_SOURCES} ${GAME_MODULE_SHARED_SOURCES})

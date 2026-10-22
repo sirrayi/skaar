@@ -592,6 +592,12 @@ vm_t *VM_Create( const char *module, intptr_t (*systemCalls)(intptr_t *),
 		Com_Error( ERR_FATAL, "VM_Create: bad parms" );
 	}
 
+#ifdef STANDALONE
+	// skaar: game modules are native libraries only (C++ can't target the
+	// QVM), so ignore vm_* values archived by older configs
+	interpret = VMI_NATIVE;
+#endif
+
 	remaining = Hunk_MemoryRemaining();
 
 	// see if we already have the VM
@@ -761,7 +767,9 @@ void *VM_ArgPtr( intptr_t intValue ) {
 	  return NULL;
 
 	if ( currentVM->entryPoint ) {
-		return (void *)(currentVM->dataBase + intValue);
+		// skaar: native modules pass real pointers (dataBase is NULL, and
+		// NULL + offset is undefined behaviour)
+		return (void *)intValue;
 	}
 	else {
 		return (void *)(currentVM->dataBase + (intValue & currentVM->dataMask));
@@ -779,7 +787,7 @@ void *VM_ExplicitArgPtr( vm_t *vm, intptr_t intValue ) {
 
 	//
 	if ( vm->entryPoint ) {
-		return (void *)(vm->dataBase + intValue);
+		return (void *)intValue;	// skaar: see VM_ArgPtr
 	}
 	else {
 		return (void *)(vm->dataBase + (intValue & vm->dataMask));

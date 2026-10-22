@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qcommon.h"
 #include "sys_local.h"
+#include "../qcommon/dev.h"
 
 #include <signal.h>
 #include <sys/types.h>
@@ -974,9 +975,19 @@ void Sys_ErrorDialog( const char *error )
 
 	Sys_Print( va( "%s\n", error ) );
 
-#ifndef DEDICATED
-	Sys_Dialog( DT_ERROR, va( "%s. See \"%s\" for details.", error, ospath ), "Error" );
+	// skaar: crash report with backtrace and log tail; the dialog points at it
+	// and at the session log. dev_errorDialog 0 skips the dialog (headless runs).
+	{
+		const char *report = Sys_WriteCrashReport( 0, error );
+
+#ifdef DEDICATED
+		(void)report;
+#else
+		if( strcmp( Cvar_VariableString( "dev_errorDialog" ), "0" ) )
+			Sys_Dialog( DT_ERROR, va( "%s\n\nCrash report: %s\nSession log: %s", error,
+				report ? report : ospath, Dev_LogPath() ), "Skaar fatal error" );
 #endif
+	}
 
 	// Make sure the write path for the crashlog exists...
 	if( FS_CreatePath( homedatapath ) )

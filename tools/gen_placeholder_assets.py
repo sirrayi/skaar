@@ -34,21 +34,25 @@ def save_tga(img, rel):
 
 
 def bigchars(font_path):
-    # Console/HUD charset: 16x16 grid of 16x16 cells, cell index = byte value
+    # Console/HUD charset: 16x16 grid of 16x16 cells, cell index = byte value.
+    # The engine draws small (console) text at 8x16, i.e. squeezed to half
+    # width, so each glyph is rendered into an 8x16 cell and stretched 2x
+    # horizontally to fill the 16x16 atlas cell.
     cell, grid = 16, 16
     img = Image.new("RGBA", (cell * grid, cell * grid), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(font_path, 14)
+    font = ImageFont.truetype(font_path, 13)
     for code in range(32, 127):
-        x, y = (code % grid) * cell, (code // grid) * cell
+        glyph = Image.new("RGBA", (8, 16), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(glyph)
         ch = chr(code)
         l, t, r, b = draw.textbbox((0, 0), ch, font=font)
-        ox = x + (cell - (r - l)) // 2 - l
-        oy = y + (cell - 14) // 2 - 1
-        draw.text((ox, oy), ch, font=font, fill=(255, 255, 255, 255))
+        draw.text(((8 - (r - l)) // 2 - l, 0), ch, font=font, fill=(255, 255, 255, 255))
+        glyph = glyph.resize((cell, cell), Image.LANCZOS)
+        img.alpha_composite(glyph, ((code % grid) * cell, (code // grid) * cell))
+    draw = ImageDraw.Draw(img)
     # 10 and 11 are the console cursor glyphs in q3 charsets: solid and underline
-    draw.rectangle((10 * cell + 3, 2, 10 * cell + 12, 13), fill=(255, 255, 255, 255))
-    draw.rectangle((11 * cell + 3, 12, 11 * cell + 12, 13), fill=(255, 255, 255, 255))
+    draw.rectangle((10 * cell + 1, 1, 10 * cell + 14, 14), fill=(255, 255, 255, 255))
+    draw.rectangle((11 * cell + 1, 13, 11 * cell + 14, 14), fill=(255, 255, 255, 255))
     save_tga(img, "gfx/2d/bigchars.tga")
 
 
@@ -67,6 +71,19 @@ def console_bg():
 def white():
     # "white" is referenced by the client for fills; normally provided by a shader script
     save_tga(Image.new("RGBA", (8, 8), (255, 255, 255, 255)), "white.tga")
+
+
+def grid(name, base, line, major):
+    # Dev grid: one repeat per 128 world units (mapc's texture scale), minor
+    # lines every 16 units, a brighter border so 128-unit cells read at range
+    size = 256
+    img = Image.new("RGBA", (size, size), base + (255,))
+    draw = ImageDraw.Draw(img)
+    for i in range(0, size, 32):
+        draw.line((i, 0, i, size - 1), fill=line + (255,))
+        draw.line((0, i, size - 1, i), fill=line + (255,))
+    draw.rectangle((0, 0, size - 1, size - 1), outline=major + (255,), width=2)
+    save_tga(img, "textures/skaar/%s.tga" % name)
 
 
 def save_wav(samples, rel, rate=22050):
@@ -97,6 +114,10 @@ def main():
     bigchars(font)
     console_bg()
     white()
+    grid("grid_floor", (52, 56, 64), (66, 71, 80), (98, 105, 118))
+    grid("grid_wall", (118, 122, 128), (132, 136, 142), (160, 164, 170))
+    grid("grid_ceiling", (40, 42, 48), (50, 52, 58), (70, 73, 80))
+    grid("grid_block", (196, 120, 52), (208, 134, 66), (232, 166, 98))
     save_wav(hit_tick(), "sound/feedback/hit.wav")
 
 
