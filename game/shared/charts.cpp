@@ -34,13 +34,13 @@ void Init(const Backend& backend) {
     g_white = backend.registerShader("white");
 }
 
-void Line(float x0, float y0, float x1, float y1, Color color, float thickness) {
-    if (!g_white) {
-        return;
-    }
+namespace {
+
+// Line with the colour already set. stride > 1 draws every stride-th pixel
+// step with a slightly bigger square: a dotted line that costs 1/stride.
+void LineCore(float x0, float y0, float x1, float y1, float thickness, int stride = 1) {
     const float t = std::max(1.0f, std::round(ToPx(thickness)));
     const float ax = ToPx(x0), ay = ToPx(y0), bx = ToPx(x1), by = ToPx(y1);
-    SetColor(color);
     const float dx = bx - ax, dy = by - ay;
     // axis-aligned lines are one rectangle
     if (std::fabs(dy) < 0.5f) {
@@ -51,16 +51,28 @@ void Line(float x0, float y0, float x1, float y1, Color color, float thickness) 
         // x-major: one vertical span per column
         const int steps = static_cast<int>(std::ceil(std::fabs(dx)));
         const float sx = dx > 0 ? 1 : -1, slope = dy / std::fabs(dx);
-        for (int i = 0; i <= steps; i++) {
-            Px(std::round(ax + sx * i), std::round(ay + slope * i - t / 2), 1, t);
+        const float w = stride > 1 ? std::max(t, stride * 0.6f) : 1;
+        for (int i = 0; i <= steps; i += stride) {
+            Px(std::round(ax + sx * i), std::round(ay + slope * i - t / 2), w, t);
         }
     } else {
         const int steps = static_cast<int>(std::ceil(std::fabs(dy)));
         const float sy = dy > 0 ? 1 : -1, slope = dx / std::fabs(dy);
-        for (int i = 0; i <= steps; i++) {
-            Px(std::round(ax + slope * i - t / 2), std::round(ay + sy * i), t, 1);
+        const float h = stride > 1 ? std::max(t, stride * 0.6f) : 1;
+        for (int i = 0; i <= steps; i += stride) {
+            Px(std::round(ax + slope * i - t / 2), std::round(ay + sy * i), t, h);
         }
     }
+}
+
+}  // namespace
+
+void Line(float x0, float y0, float x1, float y1, Color color, float thickness) {
+    if (!g_white) {
+        return;
+    }
+    SetColor(color);
+    LineCore(x0, y0, x1, y1, thickness);
     ResetColor();
 }
 
@@ -71,6 +83,18 @@ void Dot(float x, float y, float size, Color color) {
     const float s = std::max(1.0f, std::round(ToPx(size)));
     SetColor(color);
     Px(std::round(ToPx(x) - s / 2), std::round(ToPx(y) - s / 2), s, s);
+    ResetColor();
+}
+
+void Dots(const std::vector<float>& xy, float size, Color color) {
+    if (!g_white || xy.size() < 2) {
+        return;
+    }
+    const float s = std::max(1.0f, std::round(ToPx(size)));
+    SetColor(color);
+    for (size_t i = 0; i + 1 < xy.size(); i += 2) {
+        Px(std::round(ToPx(xy[i]) - s / 2), std::round(ToPx(xy[i + 1]) - s / 2), s, s);
+    }
     ResetColor();
 }
 
@@ -105,9 +129,21 @@ void Ring(float x, float y, float radius, Color color, float thickness) {
 }
 
 void Polyline(const std::vector<float>& xy, Color color, float thickness) {
-    for (size_t i = 2; i + 1 < xy.size(); i += 2) {
-        Line(xy[i - 2], xy[i - 1], xy[i], xy[i + 1], color, thickness);
+    if (!g_white || xy.size() < 4) {
+        return;
     }
+    // The 2D queue holds ~10k rectangles a frame for everything on screen, so a
+    // long path gets at most ~2500 of them: beyond that it turns into dots.
+    float length = 0;
+    for (size_t i = 2; i + 1 < xy.size(); i += 2) {
+        length += std::max(std::fabs(xy[i] - xy[i - 2]), std::fabs(xy[i + 1] - xy[i - 1]));
+    }
+    const int stride = std::max(1, static_cast<int>(std::ceil(ToPx(length) / 2500.0f)));
+    SetColor(color);
+    for (size_t i = 2; i + 1 < xy.size(); i += 2) {
+        LineCore(xy[i - 2], xy[i - 1], xy[i], xy[i + 1], thickness, stride);
+    }
+    ResetColor();
 }
 
 void Curve(const Rect& r, const std::vector<float>& values, float lo, float hi, Color color, float thickness,
@@ -132,10 +168,12 @@ void Curve(const Rect& r, const std::vector<float>& values, float lo, float hi, 
     auto toY = [&](float v) { return bottom - (std::clamp(v, lo, hi) - lo) / (hi - lo) * (bottom - top); };
 
     if (fillColor.a > 0) {
+        // a faint wash: 2 px columns on dense displays halve its cost
+        const float col = Scale() > 1.4f ? 2 : 1;
         SetColor(fillColor);
-        for (float px = left; px <= right; px++) {
+        for (float px = left; px <= right; px += col) {
             const float y = std::round(toY(yAt(px)));
-            Px(px, y, 1, std::round(bottom) - y);
+            Px(px, y, col, std::round(bottom) - y);
         }
     }
 

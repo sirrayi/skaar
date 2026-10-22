@@ -28,6 +28,8 @@ void Line(float x0, float y0, float x1, float y1, Color color, float thickness =
 
 // Square dot / filled disc / circle outline, centred, size in virtual units.
 void Dot(float x, float y, float size, Color color);
+// Many dots in one colour (x/y pairs): one colour change for the lot.
+void Dots(const std::vector<float>& xy, float size, Color color);
 void Disc(float x, float y, float radius, Color color);
 void Ring(float x, float y, float radius, Color color, float thickness = 1.0f);
 
@@ -37,7 +39,8 @@ void Ring(float x, float y, float radius, Color color, float thickness = 1.0f);
 void Curve(const Rect& r, const std::vector<float>& values, float lo, float hi, Color color,
            float thickness = 1.5f, Color fillColor = {0, 0, 0, 0});
 
-// x/y pairs in virtual units, joined in order.
+// x/y pairs in virtual units, joined in order (one colour change for the whole line).
+// Draws one rectangle per pixel step, so keep it to a few hundred points.
 void Polyline(const std::vector<float>& xy, Color color, float thickness = 1.0f);
 
 // Horizontal progress bar: track + fill fraction 0..1.

@@ -355,11 +355,12 @@ void DrawTtkPanel(const Rect& r, const skaar::RunRecord& rec, bool hold, const s
         float lo, hi, step;
         chart::NiceRange(0, p95, 3, lo, hi, step);
         chart::YAxis(plot, lo, hi, step, "%.0f");
+        std::vector<float> dots;
         for (const skaar::KillEvent& k : rec.kills) {
-            const float px = plot.x + k.t / duration * plot.w;
-            const float py = plot.Bottom() - std::min(k.ttk, hi) / hi * plot.h;
-            chart::Dot(px, py, 5, kDot);
+            dots.push_back(plot.x + k.t / duration * plot.w);
+            dots.push_back(plot.Bottom() - std::min(k.ttk, hi) / hi * plot.h);
         }
+        chart::Dots(dots, 5, kDot);
         if (other && !other->kills.empty()) {
             // the comparison run's rolling mean, faint, on the same scale and time axis
             const float d = std::max(1.0f, other->summary.duration);
@@ -381,7 +382,7 @@ void DrawTtkPanel(const Rect& r, const skaar::RunRecord& rec, bool hold, const s
             std::string text = std::fabs(change) < 0.05f ? "Steady pace from start to finish."
                                : change > 0 ? skaar::Va("Last third %.0f%% slower than the first.", change * 100)
                                             : skaar::Va("Last third %.0f%% faster than the first.", -change * 100);
-            kit::GetFonts().text.Draw(r.x, r.Bottom() + 4, 20, text, theme::kCreamSoft);
+            kit::GetFonts().text.Draw(r.x, r.Bottom() + 20, 20, text, theme::kCreamSoft);
         }
     }
     Label(plot.x, plot.Bottom() + 24, other ? "0:00   ·   FAINT = COMPARED RUN" : "0:00", theme::kCreamFaint);
@@ -397,21 +398,30 @@ void DrawDispersionPanel(const Rect& r, const skaar::RunRecord& rec, bool hold) 
     chart::Ring(cx, cy, radius, theme::kHairlineStrong, 1);
     kit::HLine(cx - radius, cy, radius * 2, theme::kHairline);
     kit::VLine(cx, cy - radius, radius * 2, theme::kHairline);
+    // every shot counts toward the numbers; at most ~1200 are drawn (the render queue is finite)
     float sx = 0, sy = 0;
     int n = 0, inside = 0;
-    for (const skaar::ShotEvent& s : rec.shots) {
+    const size_t stride = std::max<size_t>(1, rec.shots.size() / 1200);
+    std::vector<float> hitDots, missDots;
+    for (size_t i = 0; i < rec.shots.size(); i++) {
+        const skaar::ShotEvent& s = rec.shots[i];
         if (s.radius <= 0) {
             continue;
         }
         const float ux = s.dx / s.radius, uy = s.dy / s.radius;
-        const float px = std::clamp(ux / span, -1.0f, 1.0f) * radius;
-        const float py = std::clamp(uy / span, -1.0f, 1.0f) * radius;
-        chart::Dot(cx + px, cy - py, 4, s.hit ? kDot : kEmber.Alpha(0.85f));
         sx += ux;
         sy += uy;
         inside += s.hit ? 1 : 0;
         n++;
+        if (i % stride || std::fabs(ux) > span || std::fabs(uy) > span) {
+            continue;  // thinned, or off the plot
+        }
+        std::vector<float>& dots = s.hit ? hitDots : missDots;
+        dots.push_back(cx + ux / span * radius);
+        dots.push_back(cy - uy / span * radius);
     }
+    chart::Dots(missDots, 4, kEmber.Alpha(0.85f));
+    chart::Dots(hitDots, 4, kDot);
     if (n == 0) {
         return;
     }
@@ -460,17 +470,20 @@ void DrawPathPanel(const Rect& r, const skaar::RunRecord& rec) {
 
     kit::HLine(plot.x, plot.Bottom(), plot.w, theme::kHairline);
     std::vector<float> xy;
-    const size_t stride = std::max<size_t>(1, s.size() / 900);
+    const size_t stride = std::max<size_t>(1, s.size() / 400);  // ~400 points: enough for the shape
     for (size_t i = 0; i < s.size(); i += stride) {
         xy.push_back(toX(skaar::AngleDelta(s[i].yaw, yaw0)));
         xy.push_back(toY(s[i].pitch));
     }
     chart::Polyline(xy, theme::kCream.Alpha(0.35f), 1);
     // where the view was at each kill
+    std::vector<float> killDots;
     for (const skaar::KillEvent& kill : rec.kills) {
         const size_t i = std::min(s.size() - 1, static_cast<size_t>(kill.t * skaar::kSampleHz));
-        chart::Dot(toX(skaar::AngleDelta(s[i].yaw, yaw0)), toY(s[i].pitch), 5, kEmber);
+        killDots.push_back(toX(skaar::AngleDelta(s[i].yaw, yaw0)));
+        killDots.push_back(toY(s[i].pitch));
     }
+    chart::Dots(killDots, 5, kEmber);
     Label(plot.x, plot.Bottom() + 24, skaar::Va("%.0f° × %.0f°", spanYaw, spanPitch), theme::kCreamFaint);
 
     // angular speed over the run, smoothed

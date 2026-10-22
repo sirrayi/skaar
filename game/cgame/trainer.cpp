@@ -503,18 +503,28 @@ void DrawSummary() {
     kit::VLine(dcx, dcy - dr, dr * 2, theme::kHairline);
     float sx = 0, sy = 0;
     int n = 0;
-    for (const skaar::ShotEvent& shot : st.last->shots) {
+    // all shots count toward the drift; at most ~1200 are drawn (the render queue is finite)
+    const auto& shots = st.last->shots;
+    const size_t stride = std::max<size_t>(1, shots.size() / 1200);
+    std::vector<float> hitDots, missDots;
+    for (size_t i = 0; i < shots.size(); i++) {
+        const skaar::ShotEvent& shot = shots[i];
         if (shot.radius <= 0) {
             continue;
         }
-        // 2.5 radii fill the plot
-        const float px = std::clamp(shot.dx / shot.radius / 2.5f, -1.0f, 1.0f) * dr;
-        const float py = std::clamp(shot.dy / shot.radius / 2.5f, -1.0f, 1.0f) * dr;
-        chart::Dot(dcx + px, dcy - py, 5, shot.hit ? theme::kCream.Alpha(0.55f) : kTarget.Alpha(0.8f));
-        sx += shot.dx / shot.radius;
-        sy += shot.dy / shot.radius;
+        const float ux = shot.dx / shot.radius, uy = shot.dy / shot.radius;
+        sx += ux;
+        sy += uy;
         n++;
+        if (i % stride || std::fabs(ux) > 2.5f || std::fabs(uy) > 2.5f) {
+            continue;  // thinned, or off the plot (2.5 radii fill it)
+        }
+        std::vector<float>& dots = shot.hit ? hitDots : missDots;
+        dots.push_back(dcx + ux / 2.5f * dr);
+        dots.push_back(dcy - uy / 2.5f * dr);
     }
+    chart::Dots(missDots, 5, kTarget.Alpha(0.8f));
+    chart::Dots(hitDots, 5, theme::kCream.Alpha(0.55f));
     if (n > 0) {
         sx /= n;
         sy /= n;
