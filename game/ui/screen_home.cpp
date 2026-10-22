@@ -79,7 +79,8 @@ void DrawHome() {
         {"Play", [] { Open(Screen::kPlay); }},
         {"Arena", [] {
              // duel practice: weapons, items, dummies (docs/plan-P6.md)
-             Exec("set sk_scenario \"\"; map duel\n");
+             const std::string mv = trap::CvarString("sk_arenaMovement");
+             Exec(skaar::Va("set sk_scenario \"\"; set g_movement %s; map duel\n", mv.empty() ? "cpm" : mv.c_str()));
              Close();
          }},
         {"Tac range", [] {
@@ -90,7 +91,8 @@ void DrawHome() {
         {"Insights", [] { Open(Screen::kInsights); }},
         {"Settings", [] { Open(Screen::kSettings); }},
         {"Free roam", [] {
-             Exec("set sk_scenario \"\"; devmap testroom\n");
+             const std::string mv = trap::CvarString("sk_roamMovement");
+             Exec(skaar::Va("set sk_scenario \"\"; set g_movement %s; devmap testroom\n", mv.empty() ? "cpm" : mv.c_str()));
              Close();
          }},
         {"Quit", [] { Exec("quit\n"); }},

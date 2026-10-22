@@ -48,7 +48,7 @@ constexpr float kLabel = 15;      // mono, uppercase: labels, eyebrows, hints
 
 enum class Screen { kNone, kHome, kPlay, kInsights, kSettings, kInGame, kEditor };
 enum class InsightsTab { kOverview, kScenarios, kRun, kBenchmarks, kArena };
-enum class SettingsTab { kAim, kCrosshair, kControls, kVideo, kAudio };
+enum class SettingsTab { kAim, kCrosshair, kControls, kGame, kVideo, kAudio };
 
 // Input gathered from key/mouse events between frames
 struct Input {

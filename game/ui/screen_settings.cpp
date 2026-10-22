@@ -187,6 +187,27 @@ void DrawControls(float top) {
     Label(m, top + perColumn * kRowStep + 40, "ENTER  BIND     BACKSPACE  CLEAR", theme::kCreamFaint);
 }
 
+void DrawGame(float top) {
+    float y = top;
+    // movement physics per mode; the menu sets g_movement from these when it starts the mode
+    const std::vector<std::pair<std::string, std::string>> physics = {{"vq3", "Classic (vq3)"}, {"cpm", "Advanced (cpm)"}};
+    if (trap::CvarString("sk_arenaMovement").empty()) {
+        trap::CvarSet("sk_arenaMovement", "cpm");
+    }
+    if (trap::CvarString("sk_roamMovement").empty()) {
+        trap::CvarSet("sk_roamMovement", "cpm");
+    }
+    ChoiceRow(y, "Arena movement", "sk_arenaMovement", physics, "STRAFE JUMPS, AIR CONTROL, DOUBLE JUMPS IN CPM");
+    y += kRowStep;
+    ChoiceRow(y, "Free roam movement", "sk_roamMovement", physics);
+    y += kRowStep;
+    ChoiceRow(y, "Arena loadout", "g_loadout", {{"1", "Every weapon"}, {"0", "Pick them up"}});
+    y += kRowStep;
+    ToggleRow(y, "Infinite ammo", "g_infiniteAmmo", "ARENA AND TAC RANGE");
+    y += kRowStep;
+    Label(theme::kMargin, y + 40, "SCENARIOS SET THEIR OWN MOVEMENT · THE TAC RANGE USES TAC MOVEMENT", theme::kCreamFaint);
+}
+
 void DrawVideo(float top) {
     const float m = theme::kMargin;
     float y = top;
@@ -234,6 +255,7 @@ void DrawSettings() {
     const T tabs[] = {{"Aim", SettingsTab::kAim},
                       {"Crosshair", SettingsTab::kCrosshair},
                       {"Controls", SettingsTab::kControls},
+                      {"Game", SettingsTab::kGame},
                       {"Video", SettingsTab::kVideo},
                       {"Audio", SettingsTab::kAudio}};
     float x = m;
@@ -256,6 +278,9 @@ void DrawSettings() {
         case SettingsTab::kControls:
             DrawControls(top);
             break;
+        case SettingsTab::kGame:
+            DrawGame(top);
+            break;
         case SettingsTab::kVideo:
             DrawVideo(top);
             break;
@@ -265,7 +290,7 @@ void DrawSettings() {
     }
     // Left/Right on a row that doesn't take it (buttons): next/previous tab
     if (const int dir = TakeAdjust()) {
-        const int n = 5, i = static_cast<int>(ui.settingsTab);
+        const int n = 6, i = static_cast<int>(ui.settingsTab);
         ui.settingsTab = static_cast<SettingsTab>((i + dir + n) % n);
         ui.focus = 0;
         ResetMarker();
