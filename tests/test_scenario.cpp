@@ -61,6 +61,9 @@ TEST("scenario defaults, comments and ranges") {
     CHECK_NEAR(s.targets.distance.max, 900, 0);
     CHECK_NEAR(s.targets.yaw.min, 20, 0);        // a number means [n, n]
     CHECK_NEAR(s.targets.yaw.max, 20, 0);
+    CHECK(s.ruleset == "vq3" && !s.playerMove);
+    CHECK(ParseScenario("y", R"({"player": {"move": true, "ruleset": "cpm"}})", s, error));
+    CHECK(s.ruleset == "cpm" && s.playerMove);
 }
 
 TEST("bad scenarios are rejected with a reason") {
@@ -72,6 +75,8 @@ TEST("bad scenarios are rejected with a reason") {
         R"({"targets": {"alive": 9, "spawn": {"shape": "grid", "cols": 3, "rows": 3}}})",
         R"({"targets": {"spawn": {"distance": 10}}})",
         R"({"targets": {"motion": {"type": "zigzag"}}})",
+        R"({"player": {"ruleset": "cpm; quit"}})",
+        R"({"player": {"ruleset": ""}})",
         R"(not json)",
     };
     for (const char* text : bad) {

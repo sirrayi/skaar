@@ -55,6 +55,12 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
 
         if (j.contains("player")) {
             s.playerMove = Get<bool>(j.at("player"), "move", false);
+            s.ruleset = Get<std::string>(j.at("player"), "ruleset", s.ruleset);
+            // it ends up in a cvar and a file name: keep it to a plain id
+            if (s.ruleset.empty() || s.ruleset.size() > 32 ||
+                s.ruleset.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-_") != std::string::npos) {
+                throw std::runtime_error("player.ruleset must be a lowercase id like \"cpm\"");
+            }
         }
 
         const std::string fire = Get<std::string>(j, "fire", "click");

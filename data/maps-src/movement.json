@@ -1,0 +1,57 @@
+// Movement test map (P5, docs/plan-P5.md). Compiled by tools/mapc (docs/mapc.md).
+// Try it: /set g_movement cpm (or vq3), then /devmap movement.
+//
+// South lane (y < 0): a 4600-unit straight for strafe jumping, with a marker
+// every 512 units along the south wall.
+// North lane (y > 0): stairs (16-unit steps), ledges of 40 (a normal jump
+// reaches ~45) and 80 (needs a double jump, ~86), and a tunnel with the
+// ceiling 20 units above the head for double-jump practice.
+// Ramps and a jump pad come when mapc has sloped brushes and trigger brushes.
+{
+  "name": "movement",
+  "message": "Skaar Movement",
+  "materials": {
+    "floor": "textures/skaar/grid_floor",
+    "wall": "textures/skaar/grid_wall",
+    "ceiling": "textures/skaar/grid_ceiling",
+    "block": "textures/skaar/grid_block"
+  },
+  "light": { "ambient": 0.5, "sun": 0.5, "sunDir": [0.4, 0.25, -1] },
+  "rooms": [
+    { "min": [-512, -768, 0], "max": [4096, 768, 512], "wall": 32,
+      "floor": "floor", "walls": "wall", "ceiling": "ceiling" }
+  ],
+  "brushes": [
+    // distance markers along the south wall, every 512 units
+    { "min": [0, -768, 0], "max": [16, -736, 8], "material": "block" },
+    { "min": [512, -768, 0], "max": [528, -736, 8], "material": "block" },
+    { "min": [1024, -768, 0], "max": [1040, -736, 16], "material": "block" },
+    { "min": [1536, -768, 0], "max": [1552, -736, 8], "material": "block" },
+    { "min": [2048, -768, 0], "max": [2064, -736, 16], "material": "block" },
+    { "min": [2560, -768, 0], "max": [2576, -736, 8], "material": "block" },
+    { "min": [3072, -768, 0], "max": [3088, -736, 16], "material": "block" },
+    { "min": [3584, -768, 0], "max": [3600, -736, 8], "material": "block" },
+
+    // stairs up: 8 steps of 16 units, 32 deep, then a landing at 128
+    { "min": [0, 64, 0], "max": [256, 320, 16], "material": "block" },
+    { "min": [32, 64, 16], "max": [256, 320, 32], "material": "block" },
+    { "min": [64, 64, 32], "max": [256, 320, 48], "material": "block" },
+    { "min": [96, 64, 48], "max": [256, 320, 64], "material": "block" },
+    { "min": [128, 64, 64], "max": [256, 320, 80], "material": "block" },
+    { "min": [160, 64, 80], "max": [256, 320, 96], "material": "block" },
+    { "min": [192, 64, 96], "max": [256, 320, 112], "material": "block" },
+    { "min": [224, 64, 112], "max": [384, 320, 128], "material": "block" },
+
+    // ledges: 40 (normal jump) and 80 (double jump: jump onto the 40, then again)
+    { "min": [640, 64, 0], "max": [768, 320, 40], "material": "block" },
+    { "min": [768, 64, 0], "max": [896, 320, 80], "material": "block" },
+    { "min": [1024, 64, 0], "max": [1152, 320, 80], "material": "block" },
+
+    // tunnel: ceiling at 76, 20 units above a standing player's head
+    { "min": [1408, 64, 76], "max": [1920, 704, 512], "material": "block" }
+  ],
+  "entities": [
+    { "classname": "info_player_deathmatch", "origin": [-384, -384, 40], "angle": 0 },
+    { "classname": "info_player_deathmatch", "origin": [-384, 384, 40], "angle": 0 }
+  ]
+}

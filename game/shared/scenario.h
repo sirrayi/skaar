@@ -30,6 +30,7 @@ struct Scenario {
     uint32_t seed = 0;        // 0: new seed every run
 
     bool playerMove = false;  // false: frozen in place (view still turns)
+    std::string ruleset = "vq3";  // movement physics: vq3 | cpm | rulesets/<id>.json (game/shared/move_ruleset.h)
 
     FireMode fire = FireMode::kClick;
 

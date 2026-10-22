@@ -10,7 +10,7 @@
     "ceiling": "textures/skaar/range_ceiling",
     "pad": "textures/skaar/range_pad"
   },
-  "light": { "ambient": 0.8, "sun": 0.2, "sunDir": [0.3, 0.2, -1] },
+  "light": { "ambient": 0.47, "sun": 0.05, "sunDir": [0.3, 0.2, -1] },
   "rooms": [
     { "min": [-384, -1792, 0], "max": [2560, 1792, 1280], "wall": 32,
       "floor": "floor", "walls": "wall", "ceiling": "ceiling" }

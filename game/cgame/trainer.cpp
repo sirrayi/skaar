@@ -583,6 +583,13 @@ void Init() {
     st.hitSound = trap::S_RegisterSound("sound/feedback/hit.wav", false);
     st.killSound = trap::S_RegisterSound("sound/feedback/kill.wav", false);
 
+    // The range and targets are authored as flat colours. The GL2 renderer's
+    // auto-exposure pulls any light scene toward mid-grey and shifts brightness
+    // as you look around, which an aim trainer can't have. Set every load,
+    // since configs from earlier builds archive the old "1".
+    trap::CvarSet("r_autoExposure", "0");
+    trap::CvarSet("r_toneMap", "0");
+
     for (const char* cmd : {"sk_start", "sk_restart", "sk_stop", "sk_replay", "sk_insights"}) {
         trap::AddCommand(cmd);
     }

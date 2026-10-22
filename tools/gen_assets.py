@@ -387,7 +387,7 @@ def target_shade():
         for x in range(size):
             dx, dy = (x + 0.5) / size * 2 - 1, (y + 0.5) / size * 2 - 1
             d = min(1.0, math.sqrt(dx * dx + dy * dy))
-            v = int(255 * (1.0 - 0.10 * d ** 4))
+            v = int(255 * (1.0 - 0.06 * d ** 4))
             img.putpixel((x, y), (v, v, v, 255))
     save_tga(img, "gfx/skaar/target_shade.tga")
 

@@ -48,6 +48,12 @@ set -- $(dev_engine_args "$CONFIG") \
 
 printf '%s[%s] launching %s build: %s%s\n' "$C_DIM" "$(now)" "$CONFIG" "$*" "$C_OFF" | tee -a "$LOG"
 
+# Agent/automated runs (own SKAAR_DEV_HOME) must not steal focus from the
+# human: SDL then doesn't force the app to the foreground on macOS
+if [ -n "${SKAAR_DEV_HOME:-}" ]; then
+    export SDL_MAC_BACKGROUND_APP=1
+fi
+
 if [ "$CONFIG" = safe ]; then
     # keep running after UBSan reports; ASan still stops on the first memory error
     export UBSAN_OPTIONS="${UBSAN_OPTIONS:-print_stacktrace=1}"

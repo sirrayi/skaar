@@ -5,6 +5,7 @@
 #include <exception>
 
 #include "../shared/draw2d.h"
+#include "../shared/reticle.h"
 #include "local.h"
 #include "trainer.h"
 
@@ -27,8 +28,9 @@ void RegisterCvars() {
     trap::CvarRegister(&cvars.fov, "cg_fov", "103", CVAR_ARCHIVE);
     trap::CvarRegister(&cvars.drawHud, "cg_drawHud", "1", CVAR_ARCHIVE);
     trap::CvarRegister(&cvars.drawCrosshair, "cg_drawCrosshair", "1", CVAR_ARCHIVE);
-    trap::CvarRegister(&cvars.crosshairSize, "cg_crosshairSize", "10", CVAR_ARCHIVE);
-    trap::CvarRegister(&cvars.crosshairGap, "cg_crosshairGap", "4", CVAR_ARCHIVE);
+    // defaults shared with the trainer and the settings preview (game/shared/reticle.h)
+    trap::CvarRegister(&cvars.crosshairSize, "cg_crosshairSize", skaar::ui::reticle_defaults::kSize, CVAR_ARCHIVE);
+    trap::CvarRegister(&cvars.crosshairGap, "cg_crosshairGap", skaar::ui::reticle_defaults::kGap, CVAR_ARCHIVE);
     trap::CvarRegister(&cvars.drawSpeed, "cg_drawSpeed", "1", CVAR_ARCHIVE);
     trap::CvarRegister(&cvars.errorDecay, "cg_errorDecay", "100", 0);
     trap::CvarRegister(&cvars.noPredict, "cg_noPredict", "0", 0);
