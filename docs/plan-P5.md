@@ -19,11 +19,17 @@ Constants, behavior and sources: `docs/cpm-physics.md`.
 - `data/base/rulesets/{vq3,cpm}.json`: every value, commented. A new `rulesets/<id>.json` adds a ruleset
   (`/set g_movement <id>`). Keys left out keep vq3's values (or cpm's for `cpm.json`).
 - Velocity snapping is a local `std::round`, not the engine syscall, so server and client share one implementation.
+- `SetWeaponRefire(weapon, ms)` / `ClearWeaponRefire()` override Q3's refire table for data-driven weapons (P6,
+  `data/base/weapons`). sgame and cgame set the same table so prediction agrees.
+- `SetWeaponSemiAuto(weapon, bool)`: one shot per press (pm_flags bit 128 = attack held since the last shot).
+- `rulesets/tac.json` (P7 tac-shooter mode, label "Tactical"): `maxSpeed` 260, quick counter-strafe stops, and
+  `airSpeedCap` so jumping never gains speed. See docs/cpm-physics.md. playerState stats 8..11 belong to the tac
+  weapons (skaar-07).
 
 ## Status
 - [x] Research doc with sources (`docs/cpm-physics.md`).
 - [x] C++ port + rulesets + JSON + configstring sync, compiled into all modules (inert until wired).
-- [x] Tests: `skaar_movetest` in ctest (`cmake/skaar/tests.cmake`, so smoke runs it), or `tools/movetest/run.sh`. 34 checks:
+- [x] Tests: `skaar_movetest` in ctest (`cmake/skaar/tests.cmake`, so smoke runs it), or `tools/movetest/run.sh`. 41 checks (including tac, weapon refire and semi-auto):
   - **Parity:** vq3 port vs C `bg_pmove.c`, byte-identical playerState over 2120 steps (flat ground, strafe jumps,
     ramps, walls, stairs, crouch).
   - **Physics:** speed cap 320, strafe-jump gain, cpm strafe-only turning 6× vq3, air control (turns, keeps speed ±1%),

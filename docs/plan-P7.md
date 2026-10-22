@@ -2,7 +2,8 @@
 
 CLAUDE.md product direction: tac-shooter feel, starting minimal with two weapons (inspired by the AK-47 and the
 Deagle; in the product they're "Rifle" and "Hand cannon"). Weapons stay data-driven: recoil patterns, spread,
-movement inaccuracy, counter-strafing. Status: proposed 2026-10-22.
+movement inaccuracy, counter-strafing. Status 2026-10-22 ~20:15: done and playable. Main menu › Tac range (rifle + hand cannon, tac movement, dummies);
+Play › tac scenarios (Spray control, Head taps, Counter-strafe). All values are first guesses that need play-testing.
 
 ## Mechanics (all in the weapon JSON, docs/weapons.md)
 | Field | Meaning |

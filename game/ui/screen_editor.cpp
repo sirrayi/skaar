@@ -159,6 +159,12 @@ void DrawEditor() {
         y += kRowStep;
     }
 
+    int gun = d.weapon == "rifle" ? 1 : d.weapon == "handcannon" ? 2 : 0;
+    if (ValueChoice(y, "Gun", gun, {"Trainer", "Rifle", "Hand cannon"}, gun ? "ITS RECOIL AND SPREAD" : "PERFECT AIM")) {
+        d.weapon = gun == 1 ? "rifle" : gun == 2 ? "handcannon" : "";
+    }
+    y += kRowStep;
+
     int move = d.playerMove ? 1 : 0;
     if (ValueChoice(y, "You", move, {"Stand still", "Move"})) {
         d.playerMove = move != 0;
@@ -166,8 +172,9 @@ void DrawEditor() {
     y += kRowStep;
     if (d.playerMove) {
         int physics = d.ruleset == "cpm" ? 1 : 0;
-        if (ValueChoice(y, "Movement physics", physics, {"vq3", "cpm"})) {
-            d.ruleset = physics ? "cpm" : "vq3";
+        physics = d.ruleset == "tac" ? 2 : physics;
+        if (ValueChoice(y, "Movement physics", physics, {"vq3", "cpm", "tac"})) {
+            d.ruleset = physics == 2 ? "tac" : physics ? "cpm" : "vq3";
         }
         y += kRowStep;
     }

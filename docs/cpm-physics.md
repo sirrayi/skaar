@@ -74,6 +74,24 @@ S3: "the faster you move, the slower you turn", which follows from the fixed k a
 - Weapon switch speed, item and damage rules: not movement.
 - Crouch-slide variants and Warsow-style dash: not CPM.
 
+## Tactical ruleset (`rulesets/tac.json`, P7)
+The tac-shooter mode wants grounded, precise movement: you stop to shoot, and you can't outrun anyone by jumping.
+Reference points are the public default server values of the Source-engine tac shooters (internal note only, no names in
+the product): run speed 250, ground accelerate 5.5, friction 5.2, stop speed 80, with a 30 wishspeed cap in the air.
+Those use the same accelerate/friction formulas as Q3.
+
+| Value | tac | Why |
+|---|---|---|
+| maxSpeed | 260 | A bit under vq3's 320. Our player is 56 tall, so 260 reads as a deliberate jog, not a sprint |
+| accelerate / friction / stopSpeed | 8 / 6 / 80 | Counter-strafing (pressing the opposite key) reaches 1/3 speed in ~56 ms and stops in ~96 ms; letting go takes ~184 / ~352 ms. A bit snappier than the reference |
+| airAccelerate / airSpeedCap | 1 / 260 | Air accel can still turn you, but can't raise horizontal speed past the run speed: no strafe-jump or bunny-hop gain. Knockback above the cap isn't cut |
+| jumpVelocity | 260 | ~42 units high, enough for a crate-height step-up, less than vq3's ~45 |
+| duckScale | 0.34 | Crouch-walk at about a third of run speed |
+| double jump, ramp jump, air control | off | Not part of this mode |
+
+Weapons for this mode use the same pmove hooks: `SetWeaponRefire` and `SetWeaponSemiAuto` (semi-automatic fires once
+per press; pm_flags bit 128 marks "attack held since the last shot").
+
 ## How we verify (P5 tests)
 `tools/movetest` (headless), against a plane/ramp trace stub with the C++ pmove, both rulesets:
 1. Ground speed caps at 320 in both rulesets.

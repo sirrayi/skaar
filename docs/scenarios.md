@@ -25,6 +25,8 @@ copy as `scenarios/<id>-mine.json` in your home dir. For anything it doesn't cov
     "ruleset": "vq3"                    // movement physics when you can move: vq3 | cpm | any rulesets/<id>.json
   },
   "fire": "click",                      // click: one shot per press | hold: continuous beam
+  "weapon": "rifle",                    // optional: a real gun (data/base/weapons): its refire, spray and spread,
+                                        // scored per shot like clicks
   "targets": {
     "alive": 3,                         // on screen at once, 1..16
     "radius": 22,                       // world units (the player is 30 wide)
