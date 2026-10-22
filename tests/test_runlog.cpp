@@ -1,0 +1,77 @@
+// This file is part of Skaar. GPLv2 or later.
+#include "check.h"
+#include "shared/runlog.h"
+
+using namespace skaar;
+
+TEST("calendar day numbers") {
+    CHECK(RunTime{1970, 1, 1, 0, 0, 0}.DayNumber() == 0);
+    CHECK(RunTime{2000, 3, 1, 0, 0, 0}.DayNumber() == 11017);
+    CHECK(RunTime{2024, 2, 29, 0, 0, 0}.DayNumber() == 19782);
+    CHECK(RunTime{2026, 3, 1, 0, 0, 0}.DayNumber() - RunTime{2026, 2, 28, 0, 0, 0}.DayNumber() == 1);
+    CHECK(RunTime{2026, 10, 22, 18, 30, 5}.Stamp() == "20261022-183005");
+    RunTime t;
+    CHECK(RunTime::FromIso("2026-10-22T18:30:05", t) && t.hour == 18 && t.second == 5);
+    CHECK(!RunTime::FromIso("2026-13-01T00:00:00", t));
+    CHECK(!RunTime::FromIso("yesterday", t));
+}
+
+TEST("summary round trip") {
+    RunSummary s;
+    s.scenario = "wall-grid";
+    s.name = "Wall grid";
+    s.category = "click";
+    s.when = {2026, 10, 22, 18, 30, 5};
+    s.duration = 60;
+    s.score = 12345.6f;
+    s.shots = 140;
+    s.hits = 130;
+    s.kills = 130;
+    s.accuracy = 130.0f / 140;
+    s.ttk = 412.3f;
+    s.sensCm360 = 34.6f;
+    s.fov = 103;
+    s.file = RecordPath(s);
+    CHECK(s.file == "stats/runs/wall-grid__20261022-183005.json");
+
+    RunSummary back;
+    CHECK(SummaryFromJson(SummaryToJsonLine(s), back));
+    CHECK(back.scenario == s.scenario && back.name == s.name && back.file == s.file);
+    CHECK(back.when.Iso() == s.when.Iso());
+    CHECK_NEAR(back.score, s.score, 0.05);
+    CHECK_NEAR(back.accuracy, s.accuracy, 1e-4);
+    CHECK(back.kills == 130 && back.shots == 140);
+    CHECK_NEAR(back.sensCm360, 34.6, 0.01);
+}
+
+TEST("history skips bad lines") {
+    RunSummary a, b;
+    a.scenario = "a";
+    b.scenario = "b";
+    const std::string text = SummaryToJsonLine(a) + "\n\n{broken\n" + R"({"no":"scenario"})" + "\n" +
+                             SummaryToJsonLine(b) + "\r\n";
+    const auto runs = ParseHistory(text);
+    CHECK(runs.size() == 2);
+    CHECK(runs.size() == 2 && runs[0].scenario == "a" && runs[1].scenario == "b");
+}
+
+TEST("record round trip") {
+    RunRecord r;
+    r.summary.scenario = "pop";
+    r.summary.when = {2026, 1, 2, 3, 4, 5};
+    r.seed = 4000000000u;
+    r.shots.push_back({1.25f, true, 3, 0.5f, -0.25f, 1.1f});
+    r.shots.push_back({2.5f, false, 4, -2.0f, 1.0f, 0.9f});
+    r.kills.push_back({1.25f, 3, 512.5f});
+    r.samples.push_back({0, 10.5f, -2.25f, 1, 2, 3});
+    RunRecord back;
+    std::string error;
+    CHECK(RecordFromJson(RecordToJson(r), back, error));
+    CHECK(back.seed == r.seed);
+    CHECK(back.shots.size() == 2 && back.shots[0].hit && !back.shots[1].hit && back.shots[1].target == 4);
+    CHECK(back.kills.size() == 1 && back.kills[0].target == 3);
+    CHECK_NEAR(back.kills[0].ttk, 512.5, 0.05);
+    CHECK(back.samples.size() == 1);
+    CHECK_NEAR(back.samples[0].pitch, -2.25, 1e-3);
+    CHECK(!RecordFromJson("{}", back, error) && !error.empty());
+}

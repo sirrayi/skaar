@@ -45,11 +45,12 @@ inline void Fail(const char* file, int line, const std::string& what) {
     static check::Register CHECK_CONCAT(reg_, __LINE__)(name, CHECK_CONCAT(test_, __LINE__)); \
     static void CHECK_CONCAT(test_, __LINE__)()
 
-#define CHECK(cond)                                    \
-    do {                                               \
-        if (!(cond)) {                                 \
-            check::Fail(__FILE__, __LINE__, #cond);    \
-        }                                              \
+// variadic so braced initializers (commas) work inside
+#define CHECK(...)                                          \
+    do {                                                    \
+        if (!(__VA_ARGS__)) {                               \
+            check::Fail(__FILE__, __LINE__, #__VA_ARGS__);  \
+        }                                                   \
     } while (0)
 
 #define CHECK_NEAR(a, b, eps)                                                                              \
