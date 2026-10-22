@@ -4,6 +4,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "../shared/q3.h"
 
@@ -38,5 +39,16 @@ void Key_ClearStates();
 void GetClientState(uiClientState_t* state);
 void GetGlconfig(glconfig_t* config);
 std::string GetConfigString(int index);
+
+// skaar-07 additions: files, sounds, time, key bindings
+std::vector<std::string> FileList(const char* dir, const char* extension);
+bool FileWrite(const char* path, const std::string& data);
+float CvarValue(const char* name);
+sfxHandle_t S_RegisterSound(const char* name);
+void S_StartLocalSound(sfxHandle_t sfx, int channel);
+void RealTime(qtime_t* t);
+std::string KeyName(int key);
+std::string KeyBinding(int key);
+void SetBinding(int key, const char* command);
 
 }  // namespace ui::trap

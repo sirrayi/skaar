@@ -85,4 +85,54 @@ std::string GetConfigString(int index) {
     return buf;
 }
 
+std::vector<std::string> FileList(const char* dir, const char* extension) {
+    static char buf[64 * 1024];
+    const int count = static_cast<int>(g_syscall(UI_FS_GETFILELIST, dir, extension, buf, sizeof(buf)));
+    std::vector<std::string> out;
+    const char* p = buf;
+    for (int i = 0; i < count && p < buf + sizeof(buf); i++) {
+        out.emplace_back(p);
+        p += out.back().size() + 1;
+    }
+    return out;
+}
+
+bool FileWrite(const char* path, const std::string& data) {
+    fileHandle_t f;
+    g_syscall(UI_FS_FOPENFILE, path, &f, FS_WRITE);
+    if (!f) {
+        return false;
+    }
+    g_syscall(UI_FS_WRITE, data.data(), static_cast<int>(data.size()), f);
+    g_syscall(UI_FS_FCLOSEFILE, f);
+    return true;
+}
+
+float CvarValue(const char* name) {
+    floatint_t fi;
+    fi.i = static_cast<int>(g_syscall(UI_CVAR_VARIABLEVALUE, name));
+    return fi.f;
+}
+
+sfxHandle_t S_RegisterSound(const char* name) {
+    return static_cast<sfxHandle_t>(g_syscall(UI_S_REGISTERSOUND, name, qfalse));
+}
+
+void S_StartLocalSound(sfxHandle_t sfx, int channel) { g_syscall(UI_S_STARTLOCALSOUND, sfx, channel); }
+void RealTime(qtime_t* t) { g_syscall(UI_REAL_TIME, t); }
+
+std::string KeyName(int key) {
+    char buf[64];
+    g_syscall(UI_KEY_KEYNUMTOSTRINGBUF, key, buf, sizeof(buf));
+    return buf;
+}
+
+std::string KeyBinding(int key) {
+    char buf[256];
+    g_syscall(UI_KEY_GETBINDINGBUF, key, buf, sizeof(buf));
+    return buf;
+}
+
+void SetBinding(int key, const char* command) { g_syscall(UI_KEY_SETBINDING, key, command); }
+
 }  // namespace ui::trap

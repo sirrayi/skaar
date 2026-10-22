@@ -5,7 +5,7 @@
 
 Outputs (see docs/assets.md for licenses):
   logo      misc/skaar/skaar-logo-source.png ->
-            misc/skaar/skaar-mark.png (clean master), skaar.icns, skaar.ico, skaar.png,
+            misc/skaar/skaar-mark.png (clean master), skaar-mark-gold.png (README), skaar.icns, skaar.ico, skaar.png,
             misc/skaar/mark-braille*.txt (terminal intro), data/base/gfx/skaar/mark.tga
   fonts     tools/fonts/* (OFL) -> data/base/fonts/*.tga + *.fontinfo (UI text atlases),
             data/base/gfx/2d/bigchars.tga (console charset)
@@ -35,6 +35,7 @@ JBMONO = os.path.join(FONTS, "jetbrainsmono", "JetBrainsMono[wght].ttf")
 STAGE = (11, 11, 12)
 CREAM = (235, 230, 219)
 EMBER = (242, 98, 46)
+GOLD = (212, 168, 75)  # brand mark colour (README)
 
 
 def rel(path):
@@ -123,6 +124,10 @@ def logo():
     master = fit_mask(mask, 1024, 1024)
     colored(master, (255, 255, 255)).save(os.path.join(BRAND, "skaar-mark.png"))
     print("wrote", rel(os.path.join(BRAND, "skaar-mark.png")))
+
+    gold = fit_mask(mask, 480, 480)
+    colored(gold, GOLD).save(os.path.join(BRAND, "skaar-mark-gold.png"))
+    print("wrote", rel(os.path.join(BRAND, "skaar-mark-gold.png")))
 
     app_icon(mask, 512).save(os.path.join(BRAND, "skaar.png"))
     print("wrote", rel(os.path.join(BRAND, "skaar.png")))

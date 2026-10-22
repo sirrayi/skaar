@@ -257,6 +257,7 @@ void Activate(int index) {
 }
 
 void KeyEvent(int key, bool down) {
+    Com_DPrintf("ui: key %d %s\n", key, down ? "down" : "up");
     if (!down || (key & K_CHAR_FLAG) || ui.screen == Screen::kNone) {
         return;
     }
@@ -296,6 +297,7 @@ void KeyEvent(int key, bool down) {
 }
 
 void MouseEvent(int dx, int dy) {
+    Com_DPrintf("ui: mouse %d %d\n", dx, dy);
     ui.mouseUsed = true;
     ui.mouseX = std::fmin(std::fmax(0.0f, ui.mouseX + dx / kit::Scale()), kit::Width());
     ui.mouseY = std::fmin(std::fmax(0.0f, ui.mouseY + dy / kit::Scale()), kit::Height());
