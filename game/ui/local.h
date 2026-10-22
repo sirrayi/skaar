@@ -107,7 +107,7 @@ struct State {
     std::map<std::string, float> scroll;  // per list
 
     qhandle_t mark = 0, pointer = 0;
-    sfxHandle_t tick = 0;
+    sfxHandle_t move = 0, confirm = 0;  // focus moved / something activated
 };
 
 extern State ui;
@@ -129,6 +129,10 @@ const skaar::RunRecord* LoadRunRecord(const std::string& file);
 // widgets.cpp
 void BeginFrame();
 void EndFrame();
+void Marker(float x, float baseline, float cap);  // the sliding ember bar points here this frame
+void DrawMarker();
+void ResetMarker();                              // snap (no slide) on the next frame
+int TakeAdjust();                                // Left/Right nobody used: screens cycle their tabs with it
 int Focusable(const Rect& r);          // registers a focus stop; returns its id
 bool Focused(int id);
 bool Activated(int id, const Rect& r);  // click on r, or Enter while focused

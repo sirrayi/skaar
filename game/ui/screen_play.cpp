@@ -107,7 +107,7 @@ void DrawPlay() {
     } else {
         kit::Background(true);
     }
-    Header(skaar::Va("%zu SCENARIOS", data.scenarios.size()));
+    Header("");
 
     // category filter
     std::vector<std::string> categories = {"all"};
@@ -134,7 +134,6 @@ void DrawPlay() {
     if (shown.empty()) {
         f.text.Draw(m, 300, type::kBody, "No scenarios here. Add JSON files to scenarios/ (docs/scenarios.md).",
                     theme::kCreamSoft);
-        Footer("ESC  BACK");
         return;
     }
     if (std::none_of(shown.begin(), shown.end(), [](const skaar::Scenario* s) { return s->id == ui.selectedScenario; })) {
@@ -170,14 +169,13 @@ void DrawPlay() {
         const bool selected = s.id == ui.selectedScenario;
         const float baseline = y + kRowH / 2 + 10;
 
-        if (selected) {
-            kit::Fill(r.x, r.y, r.w, r.h, theme::kCream.Alpha(0.035f));
-            kit::Fill(m - 28, baseline - f.text.CapHeight(type::kRow), 4, f.text.CapHeight(type::kRow), kEmber);
+        if (focused) {
+            Marker(m - 28, baseline, f.text.CapHeight(type::kRow));
         }
-        f.mono.Draw(m, baseline - 1, 17, skaar::Va("%02zu", i + 1), selected ? theme::kCreamSoft : theme::kCreamFaint,
-                    theme::kTrackMono);
-        f.text.Draw(m + 56, baseline, type::kRow, s.name, selected ? theme::kCream : theme::kCreamSoft);
-        Label(m + 420, baseline - 2, s.category, theme::kCreamFaint);
+        f.text.Draw(m, baseline, type::kRow, s.name, selected ? theme::kCream : theme::kCreamSoft);
+        if (ui.category == "all") {
+            Label(m + 420, baseline - 2, s.category, theme::kCreamFaint);
+        }
         if (auto it = data.perScenario.find(s.id); it != data.perScenario.end()) {
             f.mono.Draw(m + kListW - 20, baseline, 22, skaar::Va("%.0f", it->second.best), theme::kCreamSoft, 0.01f,
                         Align::kRight);
@@ -208,7 +206,14 @@ void DrawPlay() {
         const float px = m + kListW + 100;
         DrawDetail(*s, px, 150, w - m - px);
     }
-    Footer("↑ ↓  SCENARIO     ENTER  START     TAB  NEXT     ESC  BACK");
+    // Left/Right nobody used: next/previous category
+    if (const int dir = TakeAdjust()) {
+        const auto it = std::find(categories.begin(), categories.end(), ui.category);
+        const int i = it == categories.end() ? 0 : static_cast<int>(it - categories.begin());
+        const int n = static_cast<int>(categories.size());
+        ui.category = categories[(i + dir + n) % n];
+    }
+    Footer("ENTER  START     ← →  CATEGORY     ESC  BACK");
 }
 
 }  // namespace ui

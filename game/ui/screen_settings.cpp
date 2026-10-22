@@ -157,7 +157,7 @@ void DrawSettings() {
     } else {
         kit::Background(true);
     }
-    Header("SAVED AS YOU CHANGE THEM");
+    Header("");
 
     struct T {
         const char* label;
@@ -191,8 +191,14 @@ void DrawSettings() {
             DrawAudio(top);
             break;
     }
-    Footer(ui.editing >= 0 ? "TYPE A NUMBER     ENTER  SAVE     ESC  CANCEL"
-                           : "↑ ↓  MOVE     ← →  CHANGE     ENTER  EDIT     ESC  BACK");
+    // Left/Right on a row that doesn't take it (buttons): next/previous tab
+    if (const int dir = TakeAdjust()) {
+        const int n = 4, i = static_cast<int>(ui.settingsTab);
+        ui.settingsTab = static_cast<SettingsTab>((i + dir + n) % n);
+        ui.focus = 0;
+        ResetMarker();
+    }
+    Footer(ui.editing >= 0 ? "ENTER  SAVE     ESC  CANCEL" : "← →  CHANGE     ESC  BACK");
 }
 
 }  // namespace ui

@@ -37,6 +37,7 @@ void Open(Screen screen) {
     }
     ui.screen = screen;
     ui.focus = 0;
+    ResetMarker();
     ui.editing = -1;
     ui.openedAt = ui.realtime;
     in.mouseUsed = false;
@@ -134,6 +135,25 @@ void KeyEvent(int key, bool down) {
     if (!down) {
         return;
     }
+    // WASD moves like the arrows (letters only matter while typing a number)
+    if (ui.editing < 0) {
+        switch (key) {
+            case 'w':
+                key = K_UPARROW;
+                break;
+            case 's':
+                key = K_DOWNARROW;
+                break;
+            case 'a':
+                key = K_LEFTARROW;
+                break;
+            case 'd':
+                key = K_RIGHTARROW;
+                break;
+            default:
+                break;
+        }
+    }
     if (key == K_MWHEELUP) {
         in.wheel++;
     } else if (key == K_MWHEELDOWN) {
@@ -171,7 +191,8 @@ void Init() {
     chart::Init(backend);
     ui.mark = trap::R_RegisterShaderNoMip("gfx/skaar/mark");
     ui.pointer = trap::R_RegisterShaderNoMip("gfx/skaar/cursor");
-    ui.tick = trap::S_RegisterSound("sound/feedback/hit.wav");
+    ui.move = trap::S_RegisterSound("sound/ui/move.wav");
+    ui.confirm = trap::S_RegisterSound("sound/ui/confirm.wav");
     ui.version = trap::CvarString("version");
     if (const size_t space = ui.version.find(' '); space != std::string::npos) {
         ui.version = "v" + ui.version.substr(space + 1, ui.version.find(' ', space + 1) - space - 1);
@@ -207,6 +228,7 @@ void Refresh(int realtime) {
     if (ui.back) {
         Back();
     }
+    DrawMarker();
     Pointer();
     EndFrame();
 }

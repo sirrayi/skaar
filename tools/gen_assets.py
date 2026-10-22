@@ -421,6 +421,30 @@ def trainer():
     save_wav(kill_tick(), "sound/feedback/kill.wav")
 
 
+# ---- ui sounds ----------------------------------------------------------------
+
+def ui_move(rate=22050):
+    # Soft high click for moving the selection: 3.2 kHz, ~15 ms, quiet
+    n = int(rate * 0.018)
+    return [0.16 * math.sin(2 * math.pi * 3200 * i / rate) * math.exp(-i / (rate * 0.004)) for i in range(n)]
+
+
+def ui_confirm(rate=22050):
+    # Deeper, rounder tick for confirming: 900 Hz gliding to 700 Hz, ~45 ms
+    n = int(rate * 0.05)
+    out, phase = [], 0.0
+    for i in range(n):
+        f = 900 - 200 * i / n
+        phase += 2 * math.pi * f / rate
+        out.append(0.34 * math.sin(phase) * math.exp(-i / (rate * 0.012)))
+    return out
+
+
+def ui_sounds():
+    save_wav(ui_move(), "sound/ui/move.wav")
+    save_wav(ui_confirm(), "sound/ui/confirm.wav")
+
+
 def main():
     for path in (MANROPE, JBMONO):
         if not os.path.exists(path):
@@ -442,6 +466,7 @@ def main():
     grid("grid_block", (196, 120, 52), (208, 134, 66), (232, 166, 98))
     save_wav(hit_tick(), "sound/feedback/hit.wav")
     trainer()
+    ui_sounds()
 
 
 if __name__ == "__main__":

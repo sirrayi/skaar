@@ -18,19 +18,66 @@ int g_dragging = -1;       // focus id of the slider being dragged
 constexpr float kRowH = 64;
 constexpr float kControlX = 560;  // settings control column, from the margin
 
+int g_lastFocus = -1;
+int g_lastMoveSound = 0;
+
+// The selection marker: one ember bar that slides to whatever has focus
+struct MarkerAnim {
+    bool has = false, target = false;
+    float x = 0, y = 0, h = 0;      // drawn
+    float tx = 0, ty = 0, th = 0;   // wanted this frame
+    int lastTime = 0;
+} g_marker;
+
 void Tick() {
-    if (ui.tick) {
-        trap::S_StartLocalSound(ui.tick, CHAN_LOCAL_SOUND);
+    if (ui.confirm) {
+        trap::S_StartLocalSound(ui.confirm, CHAN_LOCAL_SOUND);
     }
 }
 
-void FocusTick(float x, float baseline, float cap) {
-    kit::Fill(x, baseline - cap, 4, cap, kEmber);
-}
+void FocusTick(float x, float baseline, float cap) { Marker(x, baseline, cap); }
 
 }  // namespace
 
 // ---- frame / focus ---------------------------------------------------------------
+
+void Marker(float x, float baseline, float cap) {
+    g_marker.target = true;
+    g_marker.tx = x;
+    g_marker.ty = baseline - cap;
+    g_marker.th = cap;
+}
+
+void ResetMarker() { g_marker.has = false; }
+
+void DrawMarker() {
+    if (!g_marker.target) {
+        g_marker.has = false;
+        return;
+    }
+    const int dt = std::clamp(ui.realtime - g_marker.lastTime, 0, 100);
+    g_marker.lastTime = ui.realtime;
+    // snap on a new screen or a jump between columns; otherwise ease out (~90 ms to settle)
+    if (!g_marker.has || std::fabs(g_marker.tx - g_marker.x) > 80) {
+        g_marker.x = g_marker.tx;
+        g_marker.y = g_marker.ty;
+        g_marker.h = g_marker.th;
+        g_marker.has = true;
+    } else {
+        const float k = 1.0f - std::exp(-dt / 28.0f);
+        g_marker.x += (g_marker.tx - g_marker.x) * k;
+        g_marker.y += (g_marker.ty - g_marker.y) * k;
+        g_marker.h += (g_marker.th - g_marker.h) * k;
+    }
+    kit::Fill(g_marker.x, g_marker.y, 4, g_marker.h, kEmber);
+    g_marker.target = false;
+}
+
+int TakeAdjust() {
+    const int a = ui.adjust;
+    ui.adjust = 0;
+    return a;
+}
 
 void BeginFrame() {
     ui.prevFocusCount = ui.focusCount;
@@ -106,6 +153,13 @@ void BeginFrame() {
 }
 
 void EndFrame() {
+    if (ui.focus != g_lastFocus) {
+        if (g_lastFocus >= 0 && ui.move && ui.realtime - g_lastMoveSound > 35) {
+            trap::S_StartLocalSound(ui.move, CHAN_LOCAL_SOUND);
+            g_lastMoveSound = ui.realtime;
+        }
+        g_lastFocus = ui.focus;
+    }
     in.keys.clear();
     in.chars.clear();
     in.click = false;
@@ -258,16 +312,14 @@ void Header(const std::string& eyebrowLeft) {
         }
         x += tw + 56;
     }
-    Label(w - m, 84, eyebrowLeft.empty() ? "ESC  BACK" : eyebrowLeft + "   ·   ESC  BACK", theme::kCreamFaint,
-          Align::kRight);
-    kit::HLine(m, 120, w - 2 * m, theme::kHairline);
+    if (!eyebrowLeft.empty()) {
+        Label(w - m, 84, eyebrowLeft, theme::kCreamFaint, Align::kRight);
+    }
 }
 
 void Footer(const std::string& hints) {
-    const float m = theme::kMargin, w = kit::Width(), h = kit::Height();
-    kit::HLine(m, h - 96, w - 2 * m, theme::kHairline);
+    const float m = theme::kMargin, h = kit::Height();
     Label(m, h - 56, hints, theme::kCreamFaint);
-    Label(w - m, h - 56, ui.version, theme::kCreamFaint, Align::kRight);
 }
 
 void Pointer() {
@@ -280,7 +332,6 @@ bool ActionButton(const Rect& r, const std::string& label, const std::string& hi
     const int id = Focusable(r);
     const bool focused = Focused(id);
     const kit::Fonts& f = kit::GetFonts();
-    kit::Fill(r.x, r.y, r.w, r.h, focused ? theme::kCream.Alpha(0.06f) : theme::kCream.Alpha(0.02f));
     kit::HLine(r.x, r.y, r.w, focused ? theme::kCreamSoft : theme::kHairlineStrong);
     kit::HLine(r.x, r.Bottom() - 1, r.w, focused ? theme::kCreamSoft : theme::kHairlineStrong);
     kit::VLine(r.x, r.y, r.h, focused ? theme::kCreamSoft : theme::kHairlineStrong);
@@ -353,7 +404,6 @@ RowLayout BeginRow(float y, const char* label, const std::string& hint) {
     const kit::Font& f = kit::GetFonts().text;
     if (row.focused) {
         FocusTick(m - 28, row.baseline, f.CapHeight(type::kRow));
-        kit::Fill(m - 40, y, r.w, kRowH, theme::kCream.Alpha(0.03f));
     }
     f.Draw(m, row.baseline, type::kRow, label, row.focused ? theme::kCream : theme::kCreamSoft);
     if (!hint.empty()) {
@@ -476,6 +526,8 @@ bool NumberRow(float y, const char* label, float value, float lo, float hi, cons
     } else if (Activated(row.id, r)) {
         ui.editing = row.id;
         ui.editBuffer.clear();
+    } else {
+        Adjusted(row.id);  // Left/Right do nothing here (and don't switch tabs)
     }
 
     if (ui.editing == row.id) {

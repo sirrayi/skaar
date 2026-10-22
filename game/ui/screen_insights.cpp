@@ -93,8 +93,7 @@ void DrawRecentTable(float x, float y, float w, int rows) {
         const bool focused = Focused(id);
         const float baseline = y + rowH / 2 + 8;
         if (focused) {
-            kit::Fill(row.x, row.y, row.w, row.h, theme::kCream.Alpha(0.035f));
-            kit::Fill(x - 28, baseline - 16, 4, 16, kEmber);
+            Marker(x - 28, baseline, 16);
         }
         const Color c = focused ? theme::kCream : theme::kCreamSoft;
         Label(x, baseline - 2, FormatDate(r.when, data.now), theme::kCreamFaint);
@@ -245,17 +244,13 @@ void DrawScenarios(float top) {
             continue;
         }
         const int id = Focusable(r);
-        if (Focused(id) && in.mouseMoved == false && ui.adjust == 0) {
-            // keyboard focus selects
-        }
         if (Focused(id)) {
             ui.selectedScenario = s.id;
         }
         const bool selected = s.id == ui.selectedScenario;
         const float baseline = y + 32;
-        if (selected) {
-            kit::Fill(r.x, r.y, r.w, r.h, theme::kCream.Alpha(0.035f));
-            kit::Fill(m - 28, baseline - 18, 4, 18, kEmber);
+        if (Focused(id)) {
+            Marker(m - 28, baseline, 18);
         }
         f.text.Draw(m, baseline, 24, data.NameOf(s.id), selected ? theme::kCream : theme::kCreamSoft);
         Label(m, baseline + 26, skaar::Va("%zu RUNS   ·   BEST %.0f", s.runs.size(), s.best), theme::kCreamFaint);
@@ -650,10 +645,7 @@ void DrawBenchmarks(float top) {
             const bool recommended = static_cast<int>(i) == p.recommended;
             const float baseline = y + rowH / 2 + 9;
             if (focused) {
-                kit::Fill(r.x, r.y, r.w, r.h, theme::kCream.Alpha(0.035f));
-            }
-            if (recommended) {
-                kit::Fill(m - 28, baseline - 18, 4, 18, kEmber);
+                Marker(m - 28, baseline, 18);
             }
             const Color c = focused ? theme::kCream : theme::kCreamSoft;
             f.text.Draw(m, baseline, 24, data.NameOf(e.scenario), c);
@@ -750,7 +742,7 @@ void DrawInsights() {
     } else {
         kit::Background(true);
     }
-    Header(skaar::Va("%d RUNS", data.overview.totalRuns));
+    Header("");
 
     struct T {
         const char* label;
@@ -786,7 +778,20 @@ void DrawInsights() {
             DrawBenchmarks(top);
             break;
     }
-    Footer("↑ ↓  MOVE     ENTER  OPEN     ESC  BACK");
+    // Left/Right nobody used: next/previous tab
+    if (const int dir = TakeAdjust()) {
+        int i = 0;
+        for (size_t k = 0; k < tabs.size(); k++) {
+            if (tabs[k].tab == ui.insightsTab) {
+                i = static_cast<int>(k);
+            }
+        }
+        const int n = static_cast<int>(tabs.size());
+        ui.insightsTab = tabs[(i + dir + n) % n].tab;
+        ui.focus = 0;
+        ResetMarker();
+    }
+    Footer("← →  TABS     ESC  BACK");
 }
 
 }  // namespace ui
