@@ -1,7 +1,11 @@
 # Plan P6: duel practice (arena, weapons, dummies)
 
 BRIEF §9 P6: "One test arena map, dummy bots, basic weapons (rail, rocket, lightning, shotgun) using Q3's existing
-weapon code." Movement comes from P5 (`g_movement`, vq3 | cpm). Status: planned, 2026-10-22.
+weapon code." Movement comes from P5 (`g_movement`, vq3 | cpm).
+
+Status 2026-10-22 evening: A–G done and playable (main menu › Arena, or `map duel`). Left: weapon refire times still
+come from pmove's table, not the JSON `refireMs` (needs a hook in skaar-31's move_pmove); arena sessions aren't saved
+to insights yet (needs a server-side file write); dummies don't shoot back.
 
 ## Scope
 1. **Weapons, data-driven.** `data/base/weapons/<id>.json` (rail, rocket, lightning, shotgun): damage, splash,

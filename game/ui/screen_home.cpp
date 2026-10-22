@@ -79,6 +79,11 @@ void DrawHome() {
         {"Play", [] { Open(Screen::kPlay); }},
         {"Insights", [] { Open(Screen::kInsights); }},
         {"Settings", [] { Open(Screen::kSettings); }},
+        {"Arena", [] {
+             // duel practice: weapons, items, dummies (docs/plan-P6.md)
+             Exec("set sk_scenario \"\"; map duel\n");
+             Close();
+         }},
         {"Free roam", [] {
              Exec("set sk_scenario \"\"; devmap testroom\n");
              Close();

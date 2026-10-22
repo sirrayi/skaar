@@ -131,7 +131,9 @@ void DrawControls(float top) {
         {"Fire", "+attack"},        {"Restart run", "sk_restart"}, {"Insights", "sk_insights"},
         {"Forward", "+forward"},    {"Back", "+back"},             {"Left", "+moveleft"},
         {"Right", "+moveright"},    {"Jump", "+moveup"},           {"Crouch", "+movedown"},
-        {"Walk", "+speed"},
+        {"Walk", "+speed"},         {"Next weapon", "weapnext"},   {"Previous weapon", "weapprev"},
+        {"Rail", "weapon 7"},       {"Rocket", "weapon 5"},        {"Lightning", "weapon 6"},
+        {"Shotgun", "weapon 3"},
     };
     // which keys run which command, once per frame
     std::map<std::string, std::vector<std::string>> keys;
@@ -145,25 +147,30 @@ void DrawControls(float top) {
         }
     }
 
-    float y = top;
+    // two columns: actions and movement on the left, weapons on the right
+    const float colW = (w - 2 * m - 120) / 2;
+    const int perColumn = 10;
+    int index = 0;
     for (const Action& a : actions) {
-        const Rect r{m - 40, y, w - 2 * m + 40, kRowStep};
+        const float x = m + (index / perColumn) * (colW + 120);
+        const float y = top + (index % perColumn) * kRowStep;
+        index++;
+        const Rect r{x - 40, y, colW + 40, kRowStep};
         const int id = Focusable(r);
         const bool focused = Focused(id);
         const float baseline = y + kRowStep / 2 + 9;
         if (focused) {
-            Marker(m - 28, baseline, f.text.CapHeight(type::kRow));
+            Marker(x - 28, baseline, f.text.CapHeight(type::kRow));
         }
-        f.text.Draw(m, baseline, type::kRow, a.label, focused ? theme::kCream : theme::kCreamSoft);
+        f.text.Draw(x, baseline, type::kRow, a.label, focused ? theme::kCream : theme::kCreamSoft);
         std::string bound;
         for (const std::string& k : keys[a.command]) {
             bound += (bound.empty() ? "" : "   ") + kit::Upper(k);
         }
         const bool waiting = ui.capturing == a.command;
-        f.mono.Draw(m + 560, baseline, 24, waiting ? "PRESS A KEY" : bound.empty() ? "—" : bound,
+        f.mono.Draw(x + 320, baseline, 24, waiting ? "PRESS A KEY" : bound.empty() ? "—" : bound,
                     waiting ? kEmber : theme::kCream, 0.06f);
         if (focused && !waiting) {
-            Label(w - m, baseline - 2, "ENTER  BIND     BACKSPACE  CLEAR", theme::kCreamFaint, Align::kRight);
             for (int key : in.keys) {
                 if (key == K_BACKSPACE || key == K_DEL) {
                     for (int k = 0; k < MAX_KEYS; k++) {
@@ -174,13 +181,13 @@ void DrawControls(float top) {
                 }
             }
         }
-        kit::HLine(m, y + kRowStep, w - 2 * m, theme::kHairline);
+        kit::HLine(x, y + kRowStep, colW, theme::kHairline);
         if (Activated(id, r)) {
             ui.capturing = a.command;
         }
         Adjusted(id);  // Left/Right don't switch tabs from here
-        y += kRowStep;
     }
+    Label(m, top + perColumn * kRowStep + 40, "ENTER  BIND     BACKSPACE  CLEAR", theme::kCreamFaint);
 }
 
 void DrawVideo(float top) {
