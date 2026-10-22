@@ -29,22 +29,19 @@ void DrawCrosshair() {
 void DrawSpeed() {
     const playerState_t& ps = cg.predicted;
     const float ups = std::sqrt(ps.velocity[0] * ps.velocity[0] + ps.velocity[1] * ps.velocity[1]);
-    const Font& mono = GetFonts().mono;
-    const float y = Height() - 96;
-    mono.Draw(Width() / 2, y, 34, skaar::Va("%.0f", ups), theme::kCream, 0.02f, Align::kCenter);
-    mono.Draw(Width() / 2, y + 28, theme::kMonoSize, "UPS", theme::kCreamFaint, theme::kTrackMono, Align::kCenter);
+    GetFonts().text.Draw(Width() / 2, Height() - 72, 26, skaar::Va("%.0f", ups), theme::kCreamSoft, 0.02f,
+                         Align::kCenter);
 }
 
 void DrawModeLine() {
-    // bottom-left metadata, mono caps: map · clock · flags
+    // bottom-left, quiet: map, clock, flags
     const int ms = cg.time - cg.levelStartTime;
     const int secs = ms > 0 ? ms / 1000 : 0;
-    std::string line = Upper(cg.mapname) + skaar::Va("  ·  %02d:%02d", secs / 60, secs % 60);
+    std::string line = std::string(cg.mapname) + skaar::Va("   %d:%02d", secs / 60, secs % 60);
     if (cg.predicted.pm_type == PM_NOCLIP) {
-        line += "  ·  NOCLIP";
+        line += "   noclip";
     }
-    GetFonts().mono.Draw(theme::kMargin / 2, Height() - 48, theme::kMonoSize, line, theme::kCreamSoft,
-                         theme::kTrackMono);
+    GetFonts().text.Draw(theme::kMargin / 2, Height() - 48, 18, line, theme::kCreamFaint, 0.02f);
 }
 
 void DrawCenterPrint() {
@@ -52,8 +49,8 @@ void DrawCenterPrint() {
         return;
     }
     const float fade = 1.0f - static_cast<float>(cg.time - cg.centerPrintTime) / kCenterPrintMsec;
-    GetFonts().text.Draw(Width() / 2, Height() * 0.3f, theme::kItemSize, Upper(cg.centerPrint),
-                         theme::kCream.Alpha(std::fmin(1.0f, fade * 3)), theme::kTrackItem, Align::kCenter);
+    GetFonts().text.Draw(Width() / 2, Height() * 0.3f, 30, cg.centerPrint,
+                         theme::kCream.Alpha(std::fmin(1.0f, fade * 3)), 0.0f, Align::kCenter);
 }
 
 bool ReadFileForKit(const char* path, std::string& out) { return trap::FileRead(path, out); }

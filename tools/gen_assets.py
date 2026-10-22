@@ -30,11 +30,14 @@ FONTS = os.path.join(REPO, "tools", "fonts")
 
 MONTSERRAT = os.path.join(FONTS, "montserrat", "Montserrat[wght].ttf")
 JBMONO = os.path.join(FONTS, "jetbrainsmono", "JetBrainsMono[wght].ttf")
+MANROPE = os.path.join(FONTS, "manrope", "Manrope[wght].ttf")
 
-# VØLUND stage palette + the ember accent (docs/ui-style.md)
+# Brand stage palette (app icon, console) + the light in-game palette (game/shared/theme.h)
 STAGE = (11, 11, 12)
 CREAM = (235, 230, 219)
 EMBER = (242, 98, 46)
+GROUND = (230, 227, 221)  # greyish taupe off-white
+INK = (35, 35, 35)
 GOLD = (212, 168, 75)  # brand mark colour (README)
 
 
@@ -166,16 +169,19 @@ def logo():
 UI_CHARS = [chr(c) for c in range(32, 127)] + list("·°×–—…←→↑↓")
 
 
-def font_atlas(name, path, weight, size, pad=6):
+def font_atlas(name, path, weight, size, pad=6, tabular=False):
     """Proportional font atlas + metrics for the modules' text renderer.
 
     .fontinfo is plain text:
       skaarfont 1
       image <shader path>   size <px>   atlas <w> <h>   metrics <ascent> <descent> <lineheight>
       glyph <codepoint> <x> <y> <w> <h> <xoff> <yoff> <advance>
-    Offsets are relative to the pen position on the baseline, y down, in atlas pixels."""
+    Offsets are relative to the pen position on the baseline, y down, in atlas pixels.
+    tabular: digits share the widest digit's advance and are centred in it, so
+    timers and scores don't jitter as they count."""
     f = font(path, size, weight)
     ascent, descent = f.getmetrics()
+    digit_adv = max(f.getlength(d) for d in "0123456789")
 
     glyphs = []
     for ch in UI_CHARS:
@@ -184,7 +190,11 @@ def font_atlas(name, path, weight, size, pad=6):
         img = Image.new("L", (w, h), 0)
         if ch != " ":
             ImageDraw.Draw(img).text((pad - l, pad - t), ch, font=f, fill=255, anchor="ls")
-        glyphs.append((ch, img, l - pad, t - pad, f.getlength(ch)))
+        adv, shift = f.getlength(ch), 0
+        if tabular and ch.isdigit():
+            shift = round((digit_adv - adv) / 2)
+            adv = digit_adv
+        glyphs.append((ch, img, l - pad + shift, t - pad, adv))
 
     # shelf packing into a 1024-wide atlas
     atlas_w, x, y, shelf = 1024, 0, 0, 0
@@ -254,13 +264,13 @@ def console_bg():
 
 
 def cursor():
-    # Menu pointer: cream arrow with a thin stage-colored edge so it reads on
-    # both the dark ground and cream text. Drawn at 4x and downsampled.
+    # Menu pointer: ink arrow with a thin ground-colored edge so it reads on
+    # both the light ground and ink text. Drawn at 4x and downsampled.
     s = 4
     pts = [(2, 2), (2, 25), (8, 19), (12, 28), (16, 26), (12, 18), (20, 18)]
     big = Image.new("RGBA", (32 * s, 32 * s), (0, 0, 0, 0))
     draw = ImageDraw.Draw(big)
-    draw.polygon([(x * s, y * s) for x, y in pts], fill=CREAM + (255,), outline=STAGE + (255,), width=2 * s)
+    draw.polygon([(x * s, y * s) for x, y in pts], fill=INK + (255,), outline=GROUND + (255,), width=2 * s)
     save_tga(big.resize((32, 32), Image.LANCZOS), "gfx/skaar/cursor.tga")
 
 
@@ -369,14 +379,15 @@ def target_sphere(radius=64.0, rings=16, segments=32):
 
 
 def target_shade():
-    # Soft matcap for tcGen environment: lit centre, falling off to a darker rim
+    # Matcap for tcGen environment, kept nearly flat so targets read as matte
+    # chalk, not chrome: no highlight, only a faint darkening at the very rim
     size = 128
     img = Image.new("RGBA", (size, size))
     for y in range(size):
         for x in range(size):
             dx, dy = (x + 0.5) / size * 2 - 1, (y + 0.5) / size * 2 - 1
-            d = min(1.0, math.sqrt(dx * dx + (dy + 0.25) ** 2))
-            v = int(255 * (1.0 - 0.42 * d ** 1.6))
+            d = min(1.0, math.sqrt(dx * dx + dy * dy))
+            v = int(255 * (1.0 - 0.10 * d ** 4))
             img.putpixel((x, y), (v, v, v, 255))
     save_tga(img, "gfx/skaar/target_shade.tga")
 
@@ -399,10 +410,11 @@ def kill_tick(rate=22050):
 
 def trainer():
     for name, base, line, major in (
-            ("range_floor", (30, 31, 34), (38, 39, 43), (52, 54, 59)),
-            ("range_wall", (36, 37, 41), (43, 44, 49), (56, 58, 63)),
-            ("range_ceiling", (22, 22, 25), (27, 27, 30), (36, 37, 40)),
-            ("range_pad", (70, 72, 78), (80, 82, 88), (104, 106, 112))):
+            # light taupe range: the ground stays quiet so the pastel-red targets carry the scene
+            ("range_floor", (218, 214, 207), (209, 205, 198), (196, 192, 185)),
+            ("range_wall", (232, 229, 223), (224, 221, 215), (212, 208, 202)),
+            ("range_ceiling", (238, 236, 231), (232, 230, 225), (222, 219, 213)),
+            ("range_pad", (198, 193, 185), (189, 184, 176), (174, 169, 161))):
         grid(name, base, line, major)
     target_sphere()
     target_shade()
@@ -410,14 +422,14 @@ def trainer():
 
 
 def main():
-    for path in (MONTSERRAT, JBMONO):
+    for path in (MANROPE, JBMONO):
         if not os.path.exists(path):
             sys.exit("missing font %s (see docs/assets.md)" % rel(path))
 
     logo()
 
-    font_atlas("montserrat-200", MONTSERRAT, 200, 96)
-    font_atlas("montserrat-300", MONTSERRAT, 300, 48)
+    font_atlas("manrope-200", MANROPE, 200, 96, tabular=True)
+    font_atlas("manrope-300", MANROPE, 300, 48, tabular=True)
     font_atlas("jbmono-400", JBMONO, 400, 32)
     bigchars()
 

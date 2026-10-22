@@ -1,5 +1,5 @@
-// Skaar UI theme: the VØLUND stage palette with one ember accent, a muted
-// nod to the original arena-shooter menu orange. See docs/ui-style.md.
+// Skaar UI theme: a light, greyish taupe ground with graphite ink and one
+// pastel-red accent, the colour of the targets. See docs/plan-visual.md.
 //
 // This file is part of Skaar. GPLv2 or later.
 #pragma once
@@ -17,15 +17,17 @@ constexpr Color Rgb(int r, int g, int b, float a = 1.0f) {
 
 namespace theme {
 
-// Colour: off-black stage, cream ink, one accent.
-constexpr Color kStage = Rgb(11, 11, 12);
-constexpr Color kCream = Rgb(235, 230, 219);
+// Colour: off-white ground, graphite ink, one accent. The names are from the
+// earlier dark theme and kept so callers don't change: kStage is the ground,
+// kCream (and its Soft/Faint steps) is the ink.
+constexpr Color kStage = Rgb(230, 227, 221);
+constexpr Color kCream = Rgb(35, 35, 35);
 constexpr Color kCreamSoft = kCream.Alpha(0.62f);
 constexpr Color kCreamFaint = kCream.Alpha(0.34f);
 constexpr Color kHairline = kCream.Alpha(0.08f);
 constexpr Color kHairlineStrong = kCream.Alpha(0.14f);
 constexpr Color kGrid = kCream.Alpha(0.025f);
-constexpr Color kEmber = Rgb(242, 98, 46);
+constexpr Color kEmber = Rgb(234, 150, 146);  // pastel chalk red: targets, the selected item, PBs
 
 // Layout, in virtual units on a 1080-tall canvas.
 constexpr float kMargin = 120.0f;

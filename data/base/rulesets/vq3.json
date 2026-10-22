@@ -1,0 +1,35 @@
+// Classic movement: Q3's own bg_pmove values. Format and sources: docs/cpm-physics.md.
+// Keys left out keep the built-in values. Add your own ruleset as rulesets/<id>.json.
+{
+  "label": "Classic",
+
+  // ground
+  "accelerate": 10,
+  "friction": 6,
+  "stopSpeed": 100,
+  "duckScale": 0.25,
+
+  // air: one small acceleration, no extras
+  "airAccelerate": 1,
+  "airStopAccelerate": 0,
+  "strafeAccelerate": 0,
+  "strafeWishSpeed": 0,
+  "airControl": 0,
+  "airControlPower": 2,
+  "airControlBackward": true,
+
+  // jumping
+  "jumpVelocity": 270,
+  "rampJump": false,
+  "doubleJumpWindowMs": 0,
+  "doubleJumpBoost": 0,
+  "autoHop": false,
+
+  // water, flight, spectator
+  "swimScale": 0.5,
+  "waterAccelerate": 4,
+  "waterFriction": 1,
+  "flyAccelerate": 8,
+  "flightFriction": 3,
+  "spectatorFriction": 5
+}

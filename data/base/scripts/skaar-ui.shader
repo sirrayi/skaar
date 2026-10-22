@@ -2,22 +2,22 @@
 // registered with RegisterShaderNoMip (the only option the ui module has), so
 // text stays smooth at every size. nopicmip keeps full resolution.
 
-fonts/montserrat-200
+fonts/manrope-200
 {
 	nopicmip
 	{
-		map fonts/montserrat-200.tga
+		map fonts/manrope-200.tga
 		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
 		rgbGen vertex
 		alphaGen vertex
 	}
 }
 
-fonts/montserrat-300
+fonts/manrope-300
 {
 	nopicmip
 	{
-		map fonts/montserrat-300.tga
+		map fonts/manrope-300.tga
 		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
 		rgbGen vertex
 		alphaGen vertex

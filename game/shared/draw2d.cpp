@@ -140,8 +140,8 @@ bool Init(const Backend& backend, int vidWidth, int vidHeight) {
     g_width = vidWidth / g_scale;
     g_white = backend.registerShader("white");
 
-    bool ok = g_fonts.display.Load(backend, "montserrat-200");
-    ok = g_fonts.text.Load(backend, "montserrat-300") && ok;
+    bool ok = g_fonts.display.Load(backend, "manrope-200");
+    ok = g_fonts.text.Load(backend, "manrope-300") && ok;
     ok = g_fonts.mono.Load(backend, "jbmono-400") && ok;
     return ok && g_white;
 }

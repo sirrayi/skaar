@@ -33,7 +33,8 @@ using skaar::TrainerSim;
 constexpr int kCountdownMs = 3000;
 constexpr float kHitFlash = 0.07f;    // seconds a hit target flashes
 constexpr int kKillFlashMs = 90;       // crosshair flash on a kill
-constexpr Color kTarget = skaar::ui::Rgb(242, 98, 46);  // the ember accent: targets are the object
+constexpr Color kTarget = theme::kEmber;  // pastel red, the accent: targets are the object
+constexpr Color kTargetHit = skaar::ui::Rgb(252, 236, 234);  // a hit blanches the target for a moment
 
 enum class Phase {
     kOff,        // no scenario: free roam
@@ -100,7 +101,7 @@ void RegisterCvars() {
     trap::CvarRegister(&cv.chSize, "cg_crosshairSize", "10", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.chGap, "cg_crosshairGap", "4", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.chThickness, "cg_crosshairThickness", "2", CVAR_ARCHIVE);
-    trap::CvarRegister(&cv.chColor, "cg_crosshairColor", "ebe6db", CVAR_ARCHIVE);
+    trap::CvarRegister(&cv.chColor, "cg_crosshairColor", "232323", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.chOutline, "cg_crosshairOutline", "1", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.hitSound, "sk_hitSound", "1", CVAR_ARCHIVE);
 }
@@ -358,7 +359,10 @@ void DrawCrosshair() {
     const float cx = std::floor(cg.glconfig.vidWidth / 2.0f) / s, cy = std::floor(cg.glconfig.vidHeight / 2.0f) / s;
     const float len = std::max(0.0f, cv.chSize.value), gap = std::max(0.0f, cv.chGap.value);
     const float t = std::max(1.0f / s, cv.chThickness.value);
-    Color color = ParseColor(cv.chColor.string, theme::kCream);
+    // "ebe6db" was the default on the old dark range and is archived in existing
+    // configs; it would vanish on the light range, so it means "default" now
+    Color color = Q_stricmp(cv.chColor.string, "ebe6db") ? ParseColor(cv.chColor.string, theme::kCream)
+                                                          : theme::kCream;
     if (cg.time < st.killFlashUntil) {
         color = kTarget;
     }
@@ -409,30 +413,22 @@ std::string Clock(float seconds) {
     return skaar::Va("%d:%02d", s / 60, s % 60);
 }
 
-void DrawStat(float x, float y, const char* label, const std::string& value, Align align) {
-    const kit::Fonts& f = kit::GetFonts();
-    f.mono.Draw(x, y, 30, value, theme::kCream, 0.02f, align);
-    f.mono.Draw(x, y + 26, 14, label, theme::kCreamFaint, theme::kTrackMono, align);
-}
-
 void DrawRunHud(bool replay) {
+    // One quiet stack at the top centre: the score, then time and accuracy.
+    // No labels; the numbers read for themselves.
+    const kit::Fonts& f = kit::GetFonts();
     const float w = kit::Width();
     const TrainerSim& sim = st.sim;
-    const bool hold = st.scenario.fire == skaar::FireMode::kHold;
 
-    DrawStat(w / 2, 86, replay ? "REPLAY" : "TIME", Clock(sim.Remaining()), Align::kCenter);
-    DrawStat(w / 2 - 240, 86, "SCORE", skaar::Va("%.0f", sim.Score()), Align::kCenter);
-    DrawStat(w / 2 + 240, 86, hold ? "ON TARGET" : "ACCURACY", skaar::Va("%.1f%%", sim.Accuracy() * 100),
-             Align::kCenter);
-
-    // elapsed bar under the numbers
-    const float barW = 600, frac = sim.Time() / std::max(1.0f, st.scenario.duration);
-    kit::Fill(w / 2 - barW / 2, 136, barW, 2, theme::kHairlineStrong);
-    kit::Fill(w / 2 - barW / 2, 136, barW * frac, 2, theme::kCreamSoft);
-
-    kit::GetFonts().mono.Draw(theme::kMargin / 2, kit::Height() - 48, theme::kMonoSize,
-                              kit::Upper(st.scenario.name) + (replay ? "  ·  REPLAY  ·  ESC MENU" : "  ·  R RESTART"),
-                              theme::kCreamSoft, theme::kTrackMono);
+    f.display.Draw(w / 2, 96, 52, skaar::Va("%.0f", sim.Score()), theme::kCream.Alpha(0.86f), -0.01f, Align::kCenter);
+    std::string line = Clock(sim.Remaining()) + skaar::Va("   %.1f%%", sim.Accuracy() * 100);
+    if (replay) {
+        line = "Replay   " + line;
+    }
+    f.text.Draw(w / 2, 130, 20, line, theme::kCreamSoft, 0.02f, Align::kCenter);
+    if (replay) {
+        f.text.Draw(w / 2, kit::Height() - 56, 18, "Esc for the menu", theme::kCreamFaint, 0.02f, Align::kCenter);
+    }
 }
 
 void DrawCountdown() {
@@ -442,19 +438,17 @@ void DrawCountdown() {
     const int n = std::max(1, (left + 999) / 1000);
     const float phase = (left % 1000) / 1000.0f;  // 1 -> 0 within each second
 
-    f.mono.Draw(w / 2, h * 0.30f, theme::kMonoSize, kit::Upper(st.scenario.category) + "  ·  " +
-                Clock(st.scenario.duration), theme::kCreamSoft, theme::kTrackMono, Align::kCenter);
-    f.display.Draw(w / 2, h * 0.30f + 92, 84, kit::Upper(st.scenario.name), theme::kCream, theme::kTrackStatement,
-                   Align::kCenter);
+    f.display.Draw(w / 2, h * 0.30f + 40, 64, st.scenario.name, theme::kCream, -0.01f, Align::kCenter);
+    std::string meta = Clock(st.scenario.duration);
     if (!st.scenario.description.empty()) {
-        f.text.Draw(w / 2, h * 0.30f + 148, 26, st.scenario.description, theme::kCreamSoft, 0, Align::kCenter);
+        meta = st.scenario.description + "   " + meta;
     }
-    f.display.Draw(w / 2, h * 0.70f, 120, skaar::Va("%d", n), theme::kCream.Alpha(0.35f + 0.65f * phase), 0,
+    f.text.Draw(w / 2, h * 0.30f + 88, 22, meta, theme::kCreamSoft, 0, Align::kCenter);
+    f.display.Draw(w / 2, h * 0.70f, 96, skaar::Va("%d", n), theme::kCream.Alpha(0.25f + 0.6f * phase), 0,
                    Align::kCenter);
     const float best = BestScore();
     if (best > 0) {
-        f.mono.Draw(w / 2, h * 0.70f + 56, theme::kMonoSize, skaar::Va("BEST %.0f  ·  %zu RUNS", best, st.history.size()),
-                    theme::kCreamFaint, theme::kTrackMono, Align::kCenter);
+        f.text.Draw(w / 2, h * 0.70f + 48, 20, skaar::Va("Best %.0f", best), theme::kCreamFaint, 0.02f, Align::kCenter);
     }
 }
 
@@ -718,9 +712,11 @@ void AddEntities() {
 
         Color c = kTarget;
         if (st.phase == Phase::kCountdown) {
-            c = {c.r * 0.45f, c.g * 0.45f, c.b * 0.45f, 1};  // visible to plan the first flick, dimmed
+            // visible to plan the first flick, washed toward the ground
+            const Color g = theme::kStage;
+            c = {c.r + (g.r - c.r) * 0.6f, c.g + (g.g - c.g) * 0.6f, c.b + (g.b - c.b) * 0.6f, 1};
         } else if (target.lastHitT >= 0 && t - target.lastHitT < kHitFlash) {
-            c = theme::kCream;
+            c = kTargetHit;
         }
         re.shaderRGBA[0] = static_cast<byte>(c.r * 255);
         re.shaderRGBA[1] = static_cast<byte>(c.g * 255);
@@ -753,7 +749,7 @@ void DrawHud() {
         default:
             if (!st.loadError.empty()) {
                 kit::GetFonts().mono.Draw(theme::kMargin / 2, 80, theme::kMonoSize, "SCENARIO ERROR  ·  " + st.loadError,
-                                          skaar::ui::Rgb(242, 98, 46), theme::kTrackMono * 0.5f);
+                                          kTarget, theme::kTrackMono * 0.5f);
             }
             break;
     }

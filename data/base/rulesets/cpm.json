@@ -1,0 +1,36 @@
+// Advanced movement: strafe-only air turning, air control, ramp and double jumps.
+// Written from documented behaviour, values and sources in docs/cpm-physics.md.
+// Keys left out keep the built-in values. Add your own ruleset as rulesets/<id>.json.
+{
+  "label": "Advanced",
+
+  // ground
+  "accelerate": 15,
+  "friction": 6,
+  "stopSpeed": 100,
+  "duckScale": 0.25,
+
+  // air
+  "airAccelerate": 1,
+  "airStopAccelerate": 2.5,   // wishing against the velocity
+  "strafeAccelerate": 70,     // only strafe keys held...
+  "strafeWishSpeed": 30,      // ...with this wishspeed cap: sharp turns
+  "airControl": 150,          // forward or back alone turns toward the view
+  "airControlPower": 2,
+  "airControlBackward": true,
+
+  // jumping
+  "jumpVelocity": 270,
+  "rampJump": true,           // vz = max(vz, 0) + jumpVelocity
+  "doubleJumpWindowMs": 400,
+  "doubleJumpBoost": 100,
+  "autoHop": false,
+
+  // water, flight, spectator
+  "swimScale": 0.5,
+  "waterAccelerate": 4,
+  "waterFriction": 1,
+  "flyAccelerate": 8,
+  "flightFriction": 3,
+  "spectatorFriction": 5
+}
