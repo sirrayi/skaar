@@ -1,0 +1,60 @@
+// Tac hand cannon (P7): semi-auto, very accurate first shot, big kick per shot.
+// Values are first guesses for play-testing. Format: docs/weapons.md.
+{
+  "name": "Hand cannon",
+  "slot": 8,
+  "type": "hitscan",
+  "tracer": true,
+  "semiAuto": true,
+  "damage": 55,
+  "headMultiplier": 2.6,
+  "falloff": [
+    600,
+    1600,
+    0.7
+  ],
+  "refireMs": 260,
+  "firstShotSpread": 0.05,
+  "inaccuracy": 0.9,
+  "moveInaccuracy": 5,
+  "moveSpeedRef": 250,
+  "airInaccuracy": 10,
+  "crouchScale": 0.7,
+  "magazine": 7,
+  "reloadMs": 2200,
+  "recoil": {
+    "recoverMs": 360,
+    "cameraFollow": 0.6,
+    "pattern": [
+      [
+        2.2,
+        0.1
+      ],
+      [
+        2.0,
+        -0.35
+      ],
+      [
+        1.8,
+        0.45
+      ],
+      [
+        1.5,
+        -0.45
+      ],
+      [
+        1.3,
+        0.4
+      ],
+      [
+        1.1,
+        -0.3
+      ]
+    ]
+  },
+  "ammo": {
+    "start": 35,
+    "max": 70,
+    "pickup": 14
+  }
+}

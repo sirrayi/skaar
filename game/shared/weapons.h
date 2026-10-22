@@ -8,6 +8,7 @@
 // This file is part of Skaar. GPLv2 or later.
 #pragma once
 
+#include <array>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,7 +42,39 @@ struct WeaponDef {
     int ammoStart = 0;       // given with the weapon
     int ammoMax = 200;
     int ammoPickup = 10;     // from an ammo box
+
+    // ---- tac weapons (P7, docs/plan-P7.md); all off by default ----
+    bool semiAuto = false;       // one shot per press
+    bool tracer = false;         // the client draws a thin tracer instead of a rail core
+    float firstShotSpread = 0;   // degrees, the first shot after the spray reset
+    float inaccuracy = 0;        // degrees, standing, after the first shot
+    float moveInaccuracy = 0;    // degrees added at moveSpeedRef horizontal speed (scales linearly)
+    float moveSpeedRef = 250;
+    float airInaccuracy = 0;     // degrees added while airborne
+    float crouchScale = 1;       // multiplies the total while crouched
+    float headMultiplier = 1;    // a hit in the top 12 units of a body
+    float falloffStart = 0, falloffEnd = 0, falloffMin = 1;  // damage scale over distance (end 0: none)
+    int magazine = 0;            // rounds per magazine (0: no magazine, ammo is the reserve)
+    int reloadMs = 0;
+    // spray pattern: per-shot [up, right] kick in degrees; shot i aims at the sum of kicks 0..i-1
+    std::vector<std::array<float, 2>> recoil;
+    int recoilRecoverMs = 0;     // a pause this long resets the spray to shot 0
+    float cameraFollow = 0.5f;   // share of the spray offset that also moves the view (the rest is bullets only)
 };
+
+// ---- tac math (deterministic: same inputs on server and client) ----
+
+// Aim offset of shot `index` in the spray, degrees: up (+) and right (+).
+void SprayOffset(const WeaponDef& w, int index, float& up, float& right);
+
+// Cone half-angle in degrees for a shot.
+float Inaccuracy(const WeaponDef& w, bool firstShot, float horizontalSpeed, bool onGround, bool crouched);
+
+// A point in the cone, from an integer seed: up / right in degrees, uniform over the disc.
+void SpreadSample(float coneDeg, int seed, float& up, float& right);
+
+// Damage scale at a distance (falloff), 1 when no falloff is set.
+float FalloffScale(const WeaponDef& w, float distance);
 
 bool ParseWeapon(std::string_view id, std::string_view json, WeaponDef& out, std::string& error);
 

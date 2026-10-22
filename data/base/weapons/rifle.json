@@ -1,0 +1,155 @@
+// Tac rifle (P7, docs/plan-P7.md): full auto, a 30-shot spray pattern that climbs, then sways.
+// Values are first guesses for play-testing. Format: docs/weapons.md.
+{
+  "name": "Rifle",
+  "slot": 2,
+  "type": "hitscan",
+  "tracer": true,
+  "damage": 36,
+  "headMultiplier": 4,
+  "falloff": [
+    800,
+    2000,
+    0.8
+  ],
+  "refireMs": 100,
+  "firstShotSpread": 0.08,
+  "inaccuracy": 0.3,
+  "moveInaccuracy": 4.5,
+  "moveSpeedRef": 250,
+  "airInaccuracy": 9,
+  "crouchScale": 0.6,
+  "magazine": 30,
+  "reloadMs": 2500,
+  "recoil": {
+    "recoverMs": 420,
+    "cameraFollow": 0.5,
+    "pattern": [
+      [
+        0.35,
+        0
+      ],
+      [
+        0.45,
+        0.05
+      ],
+      [
+        0.55,
+        -0.06
+      ],
+      [
+        0.62,
+        0.1
+      ],
+      [
+        0.68,
+        -0.08
+      ],
+      [
+        0.72,
+        0.14
+      ],
+      [
+        0.72,
+        -0.1
+      ],
+      [
+        0.68,
+        0.06
+      ],
+      [
+        0.6,
+        0.02
+      ],
+      [
+        0.5,
+        0
+      ],
+      [
+        0.12,
+        0.42
+      ],
+      [
+        0.12,
+        0.42
+      ],
+      [
+        0.12,
+        0.42
+      ],
+      [
+        0.12,
+        0.42
+      ],
+      [
+        0.12,
+        0.42
+      ],
+      [
+        0.12,
+        -0.46
+      ],
+      [
+        0.12,
+        -0.46
+      ],
+      [
+        0.12,
+        -0.46
+      ],
+      [
+        0.12,
+        -0.46
+      ],
+      [
+        0.12,
+        -0.46
+      ],
+      [
+        0.12,
+        -0.46
+      ],
+      [
+        0.12,
+        -0.46
+      ],
+      [
+        0.12,
+        0.4
+      ],
+      [
+        0.12,
+        0.4
+      ],
+      [
+        0.12,
+        0.4
+      ],
+      [
+        0.12,
+        0.4
+      ],
+      [
+        0.12,
+        0.4
+      ],
+      [
+        0.12,
+        0.4
+      ],
+      [
+        0.12,
+        -0.3
+      ],
+      [
+        0.12,
+        -0.3
+      ]
+    ]
+  },
+  "ammo": {
+    "start": 90,
+    "max": 240,
+    "pickup": 30
+  }
+}

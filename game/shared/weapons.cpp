@@ -2,6 +2,8 @@
 #include "weapons.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <stdexcept>
 
 #include "json.hpp"
@@ -112,6 +114,45 @@ bool ParseWeapon(std::string_view id, std::string_view text, WeaponDef& out, std
         w.pierce = Get<int>(j, "pierce", w.pierce);
         w.refireMs = Get<int>(j, "refireMs", w.refireMs);
         w.knockback = Get<float>(j, "knockback", w.knockback);
+        w.semiAuto = Get<bool>(j, "semiAuto", w.semiAuto);
+        w.tracer = Get<bool>(j, "tracer", w.tracer);
+        w.firstShotSpread = Get<float>(j, "firstShotSpread", w.firstShotSpread);
+        w.inaccuracy = Get<float>(j, "inaccuracy", w.inaccuracy);
+        w.moveInaccuracy = Get<float>(j, "moveInaccuracy", w.moveInaccuracy);
+        w.moveSpeedRef = Get<float>(j, "moveSpeedRef", w.moveSpeedRef);
+        w.airInaccuracy = Get<float>(j, "airInaccuracy", w.airInaccuracy);
+        w.crouchScale = Get<float>(j, "crouchScale", w.crouchScale);
+        w.headMultiplier = Get<float>(j, "headMultiplier", w.headMultiplier);
+        if (j.contains("falloff")) {
+            const auto f = j.at("falloff").get<std::vector<float>>();
+            if (f.size() != 3 || f[0] < 0 || f[1] <= f[0] || f[2] < 0 || f[2] > 1) {
+                throw std::runtime_error("falloff must be [start, end, minScale] with start < end, 0 <= minScale <= 1");
+            }
+            w.falloffStart = f[0];
+            w.falloffEnd = f[1];
+            w.falloffMin = f[2];
+        }
+        w.magazine = Get<int>(j, "magazine", w.magazine);
+        w.reloadMs = Get<int>(j, "reloadMs", w.reloadMs);
+        if (j.contains("recoil")) {
+            const json& r = j.at("recoil");
+            w.recoil.clear();
+            for (const json& kick : r.at("pattern")) {
+                w.recoil.push_back({kick.at(0).get<float>(), kick.at(1).get<float>()});
+            }
+            w.recoilRecoverMs = Get<int>(r, "recoverMs", w.recoilRecoverMs);
+            w.cameraFollow = Get<float>(r, "cameraFollow", w.cameraFollow);
+            if (w.recoil.size() > 256 || w.cameraFollow < 0 || w.cameraFollow > 1) {
+                throw std::runtime_error("recoil: at most 256 kicks, cameraFollow 0..1");
+            }
+        }
+        if (w.magazine < 0 || w.magazine > 1000 || w.reloadMs < 0 || w.reloadMs > 10000) {
+            throw std::runtime_error("magazine must be 0..1000 and reloadMs 0..10000");
+        }
+        if (w.inaccuracy < 0 || w.firstShotSpread < 0 || w.moveInaccuracy < 0 || w.airInaccuracy < 0 ||
+            w.moveSpeedRef <= 0 || w.headMultiplier < 1) {
+            throw std::runtime_error("bad inaccuracy / headMultiplier values");
+        }
         if (j.contains("ammo")) {
             const json& a = j.at("ammo");
             w.ammoStart = Get<int>(a, "start", w.ammoStart);
@@ -146,6 +187,51 @@ bool ParseWeapon(std::string_view id, std::string_view text, WeaponDef& out, std
         error = e.what();
         return false;
     }
+}
+
+void SprayOffset(const WeaponDef& w, int index, float& up, float& right) {
+    up = right = 0;
+    const int n = std::min(index, static_cast<int>(w.recoil.size()));
+    for (int i = 0; i < n; i++) {
+        up += w.recoil[i][0];
+        right += w.recoil[i][1];
+    }
+}
+
+float Inaccuracy(const WeaponDef& w, bool firstShot, float horizontalSpeed, bool onGround, bool crouched) {
+    float cone = firstShot ? w.firstShotSpread : w.inaccuracy;
+    cone += w.moveInaccuracy * std::min(horizontalSpeed / w.moveSpeedRef, 1.5f);
+    if (!onGround) {
+        cone += w.airInaccuracy;
+    }
+    if (crouched) {
+        cone *= w.crouchScale;
+    }
+    return cone;
+}
+
+void SpreadSample(float coneDeg, int seed, float& up, float& right) {
+    // two draws from a small LCG; sqrt keeps the disc uniform
+    uint32_t x = static_cast<uint32_t>(seed) * 2654435761u + 0x9e3779b9u;
+    auto next = [&x] {
+        x = x * 1664525u + 1013904223u;
+        return static_cast<float>(x >> 8) / 16777216.0f;
+    };
+    const float r = coneDeg * std::sqrt(next());
+    const float a = next() * 6.2831853f;
+    up = r * std::sin(a);
+    right = r * std::cos(a);
+}
+
+float FalloffScale(const WeaponDef& w, float distance) {
+    if (w.falloffEnd <= 0 || distance <= w.falloffStart) {
+        return 1;
+    }
+    if (distance >= w.falloffEnd) {
+        return w.falloffMin;
+    }
+    const float t = (distance - w.falloffStart) / (w.falloffEnd - w.falloffStart);
+    return 1 + (w.falloffMin - 1) * t;
 }
 
 void ResetWeapons() { Registry() = BuiltIns(); }
