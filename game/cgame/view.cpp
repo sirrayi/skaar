@@ -5,6 +5,7 @@
 
 #include "local.h"
 #include "trainer.h"
+#include "weapons.h"
 
 namespace cg {
 namespace {
@@ -48,9 +49,60 @@ void CalcViewValues() {
     CalcFov();
 }
 
+// Position entities for this frame: interpolate between the two snapshots
+// when possible, else follow the trajectory from the current one
+void LerpEntity(CEntity& cent) {
+    if (cent.interpolate && cg.nextSnap) {
+        vec3_t a, b;
+        BG_EvaluateTrajectory(&cent.current.pos, cg.snap->serverTime, a);
+        BG_EvaluateTrajectory(&cent.next.pos, cg.nextSnap->serverTime, b);
+        for (int i = 0; i < 3; i++) {
+            cent.lerpOrigin[i] = a[i] + cg.frameInterpolation * (b[i] - a[i]);
+        }
+        BG_EvaluateTrajectory(&cent.current.apos, cg.snap->serverTime, a);
+        BG_EvaluateTrajectory(&cent.next.apos, cg.nextSnap->serverTime, b);
+        for (int i = 0; i < 3; i++) {
+            cent.lerpAngles[i] = LerpAngle(a[i], b[i], cg.frameInterpolation);
+        }
+    } else {
+        BG_EvaluateTrajectory(&cent.current.pos, cg.time, cent.lerpOrigin);
+        BG_EvaluateTrajectory(&cent.current.apos, cg.time, cent.lerpAngles);
+    }
+}
+
 void AddEntities() {
-    // P1: nothing besides the world. Other players arrive later; targets via the trainer.
+    for (int i = 0; i < cg.snap->numEntities; i++) {
+        CEntity& cent = entities[cg.snap->entities[i].number];
+        if (cent.current.number == cg.snap->ps.clientNum) {
+            continue;
+        }
+        LerpEntity(cent);
+        weapons::AddPacketEntity(cent);
+    }
     trainer::AddEntities();
+}
+
+// Local player events, each once: the predicted ones (ps.events, in order of
+// eventSequence) and the server's external events
+void PlayerEvents() {
+    const playerState_t& ps = cg.predicted;
+    if (ps.eventSequence < cg.lastPlayerEventSeq || ps.eventSequence - cg.lastPlayerEventSeq > MAX_PS_EVENTS) {
+        cg.lastPlayerEventSeq = ps.eventSequence - MAX_PS_EVENTS;  // reset (respawn, map restart) or a long gap
+        if (cg.lastPlayerEventSeq < 0) {
+            cg.lastPlayerEventSeq = 0;
+        }
+    }
+    for (int seq = cg.lastPlayerEventSeq; seq < ps.eventSequence; seq++) {
+        const int slot = seq & (MAX_PS_EVENTS - 1);
+        weapons::PlayerEvent(ps.events[slot] & ~EV_EVENT_BITS, ps.eventParms[slot], ps);
+    }
+    cg.lastPlayerEventSeq = ps.eventSequence;
+
+    const playerState_t& snap = cg.snap->ps;
+    if (snap.externalEvent && snap.externalEventTime != cg.lastExternalEventTime) {
+        cg.lastExternalEventTime = snap.externalEventTime;
+        weapons::PlayerEvent(snap.externalEvent & ~EV_EVENT_BITS, snap.externalEventParm, snap);
+    }
 }
 
 }  // namespace
@@ -73,6 +125,7 @@ void DrawActiveFrame(int serverTime, bool /*demoPlayback*/) {
     }
 
     PredictPlayerState();
+    PlayerEvents();
     CalcViewValues();
 
     trap::R_ClearScene();
@@ -80,6 +133,7 @@ void DrawActiveFrame(int serverTime, bool /*demoPlayback*/) {
     trap::R_RenderScene(&cg.refdef);
 
     trainer::DrawHud();
+    weapons::DrawHud();
     DrawHud();
 }
 

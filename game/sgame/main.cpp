@@ -6,6 +6,7 @@
 #include <exception>
 
 #include "local.h"
+#include "mode.h"
 #include "shared/move_ruleset.h"
 
 namespace sg {
@@ -79,6 +80,7 @@ void InitGame(int levelTime, int randomSeed, int restart) {
     LoadRulesets();
     SelectRuleset();
 
+    mode::Init();
     SpawnEntitiesFromString();
 
     Com_DPrintf("sgame: init %s%s, %zu spawn points, pmove %s %d ms\n", level.mapname.c_str(),
@@ -87,6 +89,7 @@ void InitGame(int levelTime, int randomSeed, int restart) {
 }
 
 void ShutdownGame(int restart) {
+    mode::Shutdown();
     Com_DPrintf("sgame: shutdown%s\n", restart ? " (restart)" : "");
 }
 
@@ -105,6 +108,8 @@ void RunFrame(int levelTime) {
     if (cvars.movement.modificationCount != movementCount) {
         SelectRuleset();
     }
+
+    mode::RunFrame(levelTime);
 }
 
 intptr_t Dispatch(int command, int arg0, int arg1, int arg2) {

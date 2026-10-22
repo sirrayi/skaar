@@ -31,6 +31,7 @@ static cvar_t	*dev_logdir;
 static cvar_t	*dev_logpath;
 static cvar_t	*dev_spikeMinMs;
 static cvar_t	*dev_maxTickBacklog;
+static cvar_t	*dev_toastSpikes;
 
 static devNote_t	notes[ MAX_DEV_NOTES ];
 static int			notesHead;		// next write slot
@@ -152,7 +153,10 @@ static void Dev_ClassifyLine( const char *line ) {
 			Q_strncpyz( lastError, text + 7, sizeof( lastError ) );
 			lastErrorTime = Sys_Milliseconds();
 		}
-	} else if ( strstr( text, "WARNING" ) || !strncmp( text, "spike:", 6 ) ) {
+	} else if ( strstr( text, "WARNING" ) ||
+		( !strncmp( text, "spike:", 6 ) && dev_toastSpikes && dev_toastSpikes->integer ) ) {
+		// spikes stay in the log and watch.sh unless asked for: in toasts they
+		// crowd out the warnings that matter
 		Dev_AddNote( DEV_NOTE_WARNING, text );
 	}
 }
@@ -534,6 +538,9 @@ void Dev_Init( void ) {
 	Cvar_SetDescription( dev_spikeMinMs, "Frames must also exceed this many ms to be logged as a spike" );
 	dev_maxTickBacklog = Cvar_Get( "dev_maxTickBacklog", "3", 0 );
 	Cvar_SetDescription( dev_maxTickBacklog, "Warn when the server tick loop is more than this many ticks behind" );
+
+	dev_toastSpikes = Cvar_Get( "dev_toastSpikes", "0", CVAR_ARCHIVE );
+	Cvar_SetDescription( dev_toastSpikes, "Also show frame spike lines as toasts (they're always in the log)" );
 
 	Cmd_AddCommand( "dev_reload", Dev_Reload_f );
 	Cmd_AddCommand( "dev_notes", Dev_Notes_f );

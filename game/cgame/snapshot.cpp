@@ -4,6 +4,7 @@
 //
 // This file is part of Skaar. GPLv2 or later.
 #include "local.h"
+#include "weapons.h"
 #include "shared/move_ruleset.h"
 
 namespace cg {
@@ -59,6 +60,32 @@ snapshot_t* ReadNextSnapshot() {
     return nullptr;
 }
 
+// Fire an entity's event once (Q3's CG_CheckEvents). Temp event entities
+// (eType > ET_EVENTS) carry the event in their type and fire on arrival.
+void CheckEvents(CEntity& cent) {
+    if (cent.current.number == cg.snap->ps.clientNum) {
+        return;  // the local player's events come from the playerState
+    }
+    int event;
+    if (cent.current.eType > ET_EVENTS) {
+        if (cent.previousEvent) {
+            return;
+        }
+        cent.previousEvent = 1;
+        event = cent.current.eType - ET_EVENTS;
+    } else {
+        if (cent.current.event == cent.previousEvent) {
+            return;
+        }
+        cent.previousEvent = cent.current.event;
+        event = cent.current.event & ~EV_EVENT_BITS;
+        if (!event) {
+            return;
+        }
+    }
+    weapons::EntityEvent(cent.current, event);
+}
+
 void ResetEntity(CEntity& cent) {
     VectorCopy(cent.current.pos.trBase, cent.lerpOrigin);
     VectorCopy(cent.current.apos.trBase, cent.lerpAngles);
@@ -77,7 +104,9 @@ void SetInitialSnapshot(snapshot_t* snap) {
         cent.current = es;
         cent.interpolate = false;
         cent.valid = true;
+        cent.previousEvent = 0;
         ResetEntity(cent);
+        CheckEvents(cent);
     }
     Com_DPrintf("cgame: first snapshot, server time %d, %d entities\n", snap->serverTime, snap->numEntities);
 }
@@ -114,11 +143,15 @@ void TransitionSnapshot() {
 
     for (int i = 0; i < cg.snap->numEntities; i++) {
         CEntity& cent = entities[cg.snap->entities[i].number];
+        if (!cent.valid && !cent.interpolate) {
+            cent.previousEvent = 0;  // a new entity (or a reused slot): its events are new
+        }
         cent.current = cent.next;
         cent.valid = true;
         if (!cent.interpolate) {
             ResetEntity(cent);
         }
+        CheckEvents(cent);
     }
 
     cg.nextSnap = nullptr;

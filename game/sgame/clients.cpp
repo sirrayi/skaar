@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "local.h"
+#include "mode.h"
 #include "shared/move_pmove.h"
 #include "shared/move_ruleset.h"
 
@@ -67,6 +68,7 @@ void Spawn(int clientNum) {
 
     trap::GetUsercmd(clientNum, &client.cmd);
     SetViewAngles(client, ent, spot.angles);
+    mode::ClientSpawn(clientNum, client.ps);
 
     client.spawned = true;
     BG_PlayerStateToEntityState(&client.ps, &ent.s, qtrue);
@@ -166,7 +168,7 @@ void ClientCommand(int clientNum) {
         // sk_restart reaches the server only when the cgame trainer didn't handle it
         // (no scenario loaded): fall back to a respawn
         Spawn(clientNum);
-    } else {
+    } else if (!mode::ClientCommand(clientNum, cmd.c_str())) {
         SendPrint(clientNum, skaar::Va("unknown command: %s\n", cmd.c_str()));
     }
 }
@@ -217,6 +219,7 @@ void ClientThink(int clientNum) {
     pm.noFootsteps = qtrue;
     pm.pmove_fixed = cvars.pmoveFixed.integer;
     pm.pmove_msec = msec;
+    const int oldEventSequence = client.ps.eventSequence;
     skaar::move::Pmove(&pm);
 
     BG_PlayerStateToEntityState(&client.ps, &ent.s, qtrue);
@@ -224,6 +227,7 @@ void ClientThink(int clientNum) {
     VectorCopy(pm.mins, ent.r.mins);
     VectorCopy(pm.maxs, ent.r.maxs);
     TouchTriggers(ent, client);
+    mode::ClientThink(clientNum, ucmd, client.ps, oldEventSequence);
     BG_PlayerStateToEntityState(&client.ps, &ent.s, qtrue);
     trap::LinkEntity(&ent);
 }
@@ -247,13 +251,14 @@ void TouchTriggers(gentity_t& ent, gclient_t& client) {
     const int n = trap::EntitiesInBox(mins, maxs, list, MAX_GENTITIES);
     for (int i = 0; i < n; i++) {
         gentity_t& other = g_entities[list[i]];
-        if (!(other.r.contents & CONTENTS_TRIGGER) || other.s.eType != ET_PUSH_TRIGGER) {
+        if (!(other.r.contents & CONTENTS_TRIGGER) || !trap::EntityContact(mins, maxs, &other)) {
             continue;
         }
-        if (!trap::EntityContact(mins, maxs, &other)) {
-            continue;
+        if (other.s.eType == ET_PUSH_TRIGGER) {
+            BG_TouchJumpPad(&client.ps, &other.s);
+        } else {
+            mode::Touch(&other, &ent);  // items, mode triggers
         }
-        BG_TouchJumpPad(&client.ps, &other.s);
     }
 }
 

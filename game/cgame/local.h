@@ -17,6 +17,7 @@ struct CEntity {
     bool interpolate;       // next is usable for lerping
     vec3_t lerpOrigin;
     vec3_t lerpAngles;
+    int previousEvent;      // last entity event fired (snapshot.cpp CheckEvents)
 };
 
 struct State {
@@ -51,6 +52,8 @@ struct State {
     vec3_t predictedError;
     int predictedErrorTime;
     int lastTrainerCmd;  // newest command number handed to trainer::OnCommand
+    int lastPlayerEventSeq;   // newest predicted ps event handed to weapons::PlayerEvent
+    int lastExternalEventTime;
 
     // view (view.cpp)
     refdef_t refdef;

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <array>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,8 @@
 namespace sg {
 
 struct gclient_t;
+
+using EntityKeys = std::map<std::string, std::string>;  // a map entity's key/value pairs
 
 // The engine reads the leading entityState_t + entityShared_t of every
 // entity (sharedEntity_t), so those two must stay first and in this order.

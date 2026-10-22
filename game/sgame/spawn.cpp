@@ -10,11 +10,10 @@
 #include <vector>
 
 #include "local.h"
+#include "mode.h"
 
 namespace sg {
 namespace {
-
-using EntityKeys = std::map<std::string, std::string>;
 
 // Reads one { "key" "value" ... } block. Returns false at the end of the lump.
 bool ReadEntity(EntityKeys& keys) {
@@ -171,7 +170,7 @@ void SpawnEntitiesFromString() {
             if (keys.count("targetname")) {
                 g_targets[keys["targetname"]] = {origin[0], origin[1], origin[2]};
             }
-        } else {
+        } else if (!mode::SpawnEntity(classname.c_str(), keys)) {
             Com_DPrintf("sgame: ignoring entity '%s'\n", classname.c_str());
         }
     }

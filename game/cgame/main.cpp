@@ -9,6 +9,7 @@
 #include "local.h"
 #include "shared/move_ruleset.h"
 #include "trainer.h"
+#include "weapons.h"
 
 namespace cg {
 
@@ -84,6 +85,7 @@ void Init(int serverMessageNum, int serverCommandSequence, int clientNum) {
     InitHud();
     cg.lastTrainerCmd = trap::GetCurrentCmdNumber();  // only commands from now on
     trainer::Init();
+    weapons::Init();
 
     // commands the server handles; registering them makes them complete in the console
     for (const char* cmd : {"noclip", "kill", "respawn"}) {
@@ -95,6 +97,7 @@ void Init(int serverMessageNum, int serverCommandSequence, int clientNum) {
 }
 
 void Shutdown() {
+    weapons::Shutdown();
     trainer::Shutdown();
     for (const char* cmd : {"noclip", "kill", "respawn"}) {
         trap::RemoveCommand(cmd);
