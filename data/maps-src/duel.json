@@ -1,0 +1,482 @@
+// Duel practice arena (P6, docs/plan-P6.md): two raised ends with stairs, cover in the
+// middle, the four weapons, armor, health and practice dummies (info_dummy, mode.cpp).
+{
+  "name": "duel",
+  "message": "Skaar Duel Practice",
+  "materials": {
+    "floor": "textures/skaar/range_floor",
+    "wall": "textures/skaar/range_wall",
+    "ceiling": "textures/skaar/range_ceiling",
+    "platform": "textures/skaar/range_pad",
+    "step": "textures/skaar/range_pad",
+    "cover": "textures/skaar/range_wall"
+  },
+  "light": {
+    "ambient": 0.47,
+    "sun": 0.05,
+    "sunDir": [
+      0.3,
+      0.2,
+      -1
+    ]
+  },
+  "rooms": [
+    {
+      "min": [
+        -1024,
+        -1024,
+        0
+      ],
+      "max": [
+        1024,
+        1024,
+        640
+      ],
+      "wall": 32,
+      "floor": "floor",
+      "walls": "wall",
+      "ceiling": "ceiling"
+    }
+  ],
+  "brushes": [
+    {
+      "min": [
+        -512,
+        640,
+        0
+      ],
+      "max": [
+        512,
+        1024,
+        128
+      ],
+      "material": "platform"
+    },
+    {
+      "min": [
+        -512,
+        -1024,
+        0
+      ],
+      "max": [
+        512,
+        -640,
+        128
+      ],
+      "material": "platform"
+    },
+    {
+      "min": [
+        -128,
+        -128,
+        0
+      ],
+      "max": [
+        128,
+        128,
+        64
+      ],
+      "material": "cover"
+    },
+    {
+      "min": [
+        -704,
+        -192,
+        0
+      ],
+      "max": [
+        -576,
+        192,
+        112
+      ],
+      "material": "cover"
+    },
+    {
+      "min": [
+        576,
+        -192,
+        0
+      ],
+      "max": [
+        704,
+        192,
+        112
+      ],
+      "material": "cover"
+    },
+    {
+      "min": [
+        -128,
+        448,
+        0
+      ],
+      "max": [
+        128,
+        472,
+        16
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        472,
+        0
+      ],
+      "max": [
+        128,
+        496,
+        32
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        496,
+        0
+      ],
+      "max": [
+        128,
+        520,
+        48
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        520,
+        0
+      ],
+      "max": [
+        128,
+        544,
+        64
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        544,
+        0
+      ],
+      "max": [
+        128,
+        568,
+        80
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        568,
+        0
+      ],
+      "max": [
+        128,
+        592,
+        96
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        592,
+        0
+      ],
+      "max": [
+        128,
+        616,
+        112
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        616,
+        0
+      ],
+      "max": [
+        128,
+        640,
+        128
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        -472,
+        0
+      ],
+      "max": [
+        128,
+        -448,
+        16
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        -496,
+        0
+      ],
+      "max": [
+        128,
+        -472,
+        32
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        -520,
+        0
+      ],
+      "max": [
+        128,
+        -496,
+        48
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        -544,
+        0
+      ],
+      "max": [
+        128,
+        -520,
+        64
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        -568,
+        0
+      ],
+      "max": [
+        128,
+        -544,
+        80
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        -592,
+        0
+      ],
+      "max": [
+        128,
+        -568,
+        96
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        -616,
+        0
+      ],
+      "max": [
+        128,
+        -592,
+        112
+      ],
+      "material": "step"
+    },
+    {
+      "min": [
+        -128,
+        -640,
+        0
+      ],
+      "max": [
+        128,
+        -616,
+        128
+      ],
+      "material": "step"
+    }
+  ],
+  "entities": [
+    {
+      "classname": "info_player_deathmatch",
+      "origin": [
+        -800,
+        -800,
+        40
+      ],
+      "angle": 45
+    },
+    {
+      "classname": "info_player_deathmatch",
+      "origin": [
+        800,
+        800,
+        40
+      ],
+      "angle": 225
+    },
+    {
+      "classname": "info_player_deathmatch",
+      "origin": [
+        800,
+        -800,
+        40
+      ],
+      "angle": 135
+    },
+    {
+      "classname": "info_player_deathmatch",
+      "origin": [
+        -800,
+        800,
+        40
+      ],
+      "angle": 315
+    },
+    {
+      "classname": "weapon_railgun",
+      "origin": [
+        0,
+        880,
+        152
+      ]
+    },
+    {
+      "classname": "weapon_rocketlauncher",
+      "origin": [
+        0,
+        -880,
+        152
+      ]
+    },
+    {
+      "classname": "weapon_lightning",
+      "origin": [
+        -880,
+        0,
+        24
+      ]
+    },
+    {
+      "classname": "weapon_shotgun",
+      "origin": [
+        880,
+        0,
+        24
+      ]
+    },
+    {
+      "classname": "item_armor_body",
+      "origin": [
+        0,
+        0,
+        88
+      ]
+    },
+    {
+      "classname": "item_health_mega",
+      "origin": [
+        -880,
+        880,
+        24
+      ]
+    },
+    {
+      "classname": "item_health",
+      "origin": [
+        880,
+        -880,
+        24
+      ]
+    },
+    {
+      "classname": "item_health",
+      "origin": [
+        -880,
+        -880,
+        24
+      ]
+    },
+    {
+      "classname": "item_armor_combat",
+      "origin": [
+        880,
+        880,
+        24
+      ]
+    },
+    {
+      "classname": "ammo_rockets",
+      "origin": [
+        -300,
+        -880,
+        152
+      ]
+    },
+    {
+      "classname": "ammo_slugs",
+      "origin": [
+        300,
+        880,
+        152
+      ]
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        0,
+        400,
+        40
+      ],
+      "angle": 270,
+      "pattern": "strafe"
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        400,
+        -300,
+        40
+      ],
+      "angle": 180,
+      "pattern": "strafejump"
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        -400,
+        -300,
+        40
+      ],
+      "angle": 0,
+      "pattern": "circle"
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        0,
+        880,
+        168
+      ],
+      "angle": 270,
+      "pattern": "stand"
+    }
+  ]
+}
