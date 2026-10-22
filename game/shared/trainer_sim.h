@@ -66,6 +66,11 @@ public:
     // held = attack is down, dt = seconds since the previous command.
     TrainerEvents Input(float t, Vec3 eye, float yaw, float pitch, bool pressed, bool held, float dt);
 
+    // Replays: kill the target with this serial at time t, as the recorded run did.
+    bool KillSerial(int serial, float t);
+    // Replays: mark a recorded hit for the flash.
+    void FlashSerial(int serial, float t);
+
     bool Finished() const { return finished_; }
     float Time() const { return time_; }
     float Remaining() const;

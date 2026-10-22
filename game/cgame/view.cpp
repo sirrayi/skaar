@@ -42,6 +42,7 @@ void CalcViewValues() {
         }
     }
 
+    trainer::OverrideView(rd.vieworg, cg.viewAngles);  // replays drive the camera
     AnglesToAxis(cg.viewAngles, rd.viewaxis);
     std::memcpy(rd.areamask, cg.snap->areamask, sizeof(rd.areamask));
     CalcFov();

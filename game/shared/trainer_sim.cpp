@@ -354,6 +354,25 @@ TrainerEvents TrainerSim::Input(float t, Vec3 eye, float yaw, float pitch, bool 
     return ev;
 }
 
+bool TrainerSim::KillSerial(int serial, float t) {
+    Advance(t);
+    for (Target& target : targets_) {
+        if (target.alive && target.serial == serial) {
+            Kill(target, t);
+            return true;
+        }
+    }
+    return false;
+}
+
+void TrainerSim::FlashSerial(int serial, float t) {
+    for (Target& target : targets_) {
+        if (target.alive && target.serial == serial) {
+            target.lastHitT = t;
+        }
+    }
+}
+
 float TrainerSim::Accuracy() const {
     if (scenario_.fire == FireMode::kHold) {
         return firing_ > 0 ? onTarget_ / firing_ : 0;

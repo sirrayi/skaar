@@ -1,5 +1,13 @@
-// Aim-trainer hook points in the cgame frame loop. Stubs in P1; the trainer
-// (targets, hitscan, run recording) fills them in from P3 on.
+// Aim trainer in the cgame: runs scenarios (game/shared/trainer_sim.h) on the
+// player's own predicted commands, draws targets and the trainer HUD, saves
+// run records for the insights screens, and plays recorded runs back.
+//
+// Console commands:
+//   sk_start <scenario>   load a scenario (if it's on this map) and start a run
+//   sk_restart            new run of the current scenario (R); respawn otherwise
+//   sk_stop               leave the scenario, back to free roam
+//   sk_replay <file>      play back stats/runs/<file>.json (same map)
+//   sk_insights           open the ui insights on the last run
 //
 // This file is part of Skaar. GPLv2 or later.
 #pragma once
@@ -28,5 +36,8 @@ bool ConsoleCommand(const char* cmd);
 
 // While true the base HUD hides its crosshair, speed and map line (the trainer draws its own).
 bool Active();
+
+// Camera override for replays: no-op unless a replay is playing.
+void OverrideView(vec3_t origin, vec3_t angles);
 
 }  // namespace cg::trainer
