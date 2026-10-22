@@ -2,7 +2,9 @@
 // FOV), crosshair (with a live preview), video and audio.
 //
 // This file is part of Skaar. GPLv2 or later.
+#include <cctype>
 #include <cmath>
+#include <map>
 #include <cstdio>
 
 #include "../shared/reticle.h"
@@ -118,6 +120,69 @@ void DrawCrosshair(float top) {
     (void)y;
 }
 
+void DrawControls(float top) {
+    const kit::Fonts& f = kit::GetFonts();
+    const float m = theme::kMargin, w = kit::Width();
+    struct Action {
+        const char* label;
+        const char* command;
+    };
+    static const Action actions[] = {
+        {"Fire", "+attack"},        {"Restart run", "sk_restart"}, {"Insights", "sk_insights"},
+        {"Forward", "+forward"},    {"Back", "+back"},             {"Left", "+moveleft"},
+        {"Right", "+moveright"},    {"Jump", "+moveup"},           {"Crouch", "+movedown"},
+        {"Walk", "+speed"},
+    };
+    // which keys run which command, once per frame
+    std::map<std::string, std::vector<std::string>> keys;
+    for (int k = 0; k < MAX_KEYS; k++) {
+        std::string b = trap::KeyBinding(k);
+        if (!b.empty()) {
+            for (char& c : b) {
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            keys[b].push_back(trap::KeyName(k));
+        }
+    }
+
+    float y = top;
+    for (const Action& a : actions) {
+        const Rect r{m - 40, y, w - 2 * m + 40, kRowStep};
+        const int id = Focusable(r);
+        const bool focused = Focused(id);
+        const float baseline = y + kRowStep / 2 + 9;
+        if (focused) {
+            Marker(m - 28, baseline, f.text.CapHeight(type::kRow));
+        }
+        f.text.Draw(m, baseline, type::kRow, a.label, focused ? theme::kCream : theme::kCreamSoft);
+        std::string bound;
+        for (const std::string& k : keys[a.command]) {
+            bound += (bound.empty() ? "" : "   ") + kit::Upper(k);
+        }
+        const bool waiting = ui.capturing == a.command;
+        f.mono.Draw(m + 560, baseline, 24, waiting ? "PRESS A KEY" : bound.empty() ? "—" : bound,
+                    waiting ? kEmber : theme::kCream, 0.06f);
+        if (focused && !waiting) {
+            Label(w - m, baseline - 2, "ENTER  BIND     BACKSPACE  CLEAR", theme::kCreamFaint, Align::kRight);
+            for (int key : in.keys) {
+                if (key == K_BACKSPACE || key == K_DEL) {
+                    for (int k = 0; k < MAX_KEYS; k++) {
+                        if (!Q_stricmp(trap::KeyBinding(k).c_str(), a.command)) {
+                            trap::SetBinding(k, "");
+                        }
+                    }
+                }
+            }
+        }
+        kit::HLine(m, y + kRowStep, w - 2 * m, theme::kHairline);
+        if (Activated(id, r)) {
+            ui.capturing = a.command;
+        }
+        Adjusted(id);  // Left/Right don't switch tabs from here
+        y += kRowStep;
+    }
+}
+
 void DrawVideo(float top) {
     const float m = theme::kMargin;
     float y = top;
@@ -164,6 +229,7 @@ void DrawSettings() {
     };
     const T tabs[] = {{"Aim", SettingsTab::kAim},
                       {"Crosshair", SettingsTab::kCrosshair},
+                      {"Controls", SettingsTab::kControls},
                       {"Video", SettingsTab::kVideo},
                       {"Audio", SettingsTab::kAudio}};
     float x = m;
@@ -183,6 +249,9 @@ void DrawSettings() {
         case SettingsTab::kCrosshair:
             DrawCrosshair(top);
             break;
+        case SettingsTab::kControls:
+            DrawControls(top);
+            break;
         case SettingsTab::kVideo:
             DrawVideo(top);
             break;
@@ -192,7 +261,7 @@ void DrawSettings() {
     }
     // Left/Right on a row that doesn't take it (buttons): next/previous tab
     if (const int dir = TakeAdjust()) {
-        const int n = 4, i = static_cast<int>(ui.settingsTab);
+        const int n = 5, i = static_cast<int>(ui.settingsTab);
         ui.settingsTab = static_cast<SettingsTab>((i + dir + n) % n);
         ui.focus = 0;
         ResetMarker();

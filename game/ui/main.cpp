@@ -119,6 +119,22 @@ void KeyEvent(int key, bool down) {
     if (ui.screen == Screen::kNone) {
         return;
     }
+    // Settings › Controls is waiting for a key: the next press (any button) binds it
+    if (!ui.capturing.empty()) {
+        if (!down || (key & K_CHAR_FLAG)) {
+            return;
+        }
+        if (key != K_ESCAPE) {
+            for (int k = 0; k < MAX_KEYS; k++) {
+                if (!Q_stricmp(trap::KeyBinding(k).c_str(), ui.capturing.c_str())) {
+                    trap::SetBinding(k, "");
+                }
+            }
+            trap::SetBinding(key, ui.capturing.c_str());
+        }
+        ui.capturing.clear();
+        return;
+    }
     if (key & K_CHAR_FLAG) {
         if (down) {
             in.chars += static_cast<char>(key & ~K_CHAR_FLAG);
@@ -262,8 +278,9 @@ bool ConsoleCommand() {
                                                : InsightsTab::kOverview;
     } else if (what == "play") {
         Open(Screen::kPlay);
-    } else if (what == "settings") {
+    } else if (what == "settings" || what == "controls") {
         Open(Screen::kSettings);
+        ui.settingsTab = what == "controls" ? SettingsTab::kControls : SettingsTab::kAim;
     } else {
         Open(InGame() ? Screen::kInGame : Screen::kHome);
     }

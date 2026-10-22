@@ -47,7 +47,7 @@ constexpr float kLabel = 15;      // mono, uppercase: labels, eyebrows, hints
 
 enum class Screen { kNone, kHome, kPlay, kInsights, kSettings, kInGame };
 enum class InsightsTab { kOverview, kScenarios, kRun, kBenchmarks };
-enum class SettingsTab { kAim, kCrosshair, kVideo, kAudio };
+enum class SettingsTab { kAim, kCrosshair, kControls, kVideo, kAudio };
 
 // Input gathered from key/mouse events between frames
 struct Input {
@@ -94,6 +94,7 @@ struct State {
     bool back = false;        // Esc this frame
     int editing = -1;         // focus index of the number field being typed into
     std::string editBuffer;
+    std::string capturing;    // Settings › Controls: command waiting for a key ("" = not capturing)
 
     // screens
     std::string category = "all";      // play filter
