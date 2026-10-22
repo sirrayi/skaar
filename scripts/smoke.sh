@@ -1,6 +1,6 @@
 #!/bin/sh
 # Smoke test, run before every commit:
-#   1. build the safe config (AddressSanitizer + UBSan)
+#   1. build the safe config (AddressSanitizer + UBSan) and run its CTest unit tests
 #   2. run a headless dedicated server on the test map for 20 seconds
 #   3. quit it cleanly, then fail if it exited early or abnormally, never
 #      loaded the map, or the log has ERROR / ASSERT / sanitizer reports
@@ -29,6 +29,21 @@ if ! "$REPO/scripts/build.sh" safe > "$BUILD_LOG" 2>&1; then
 fi
 grep -a 'WARNING' "$BUILD_LOG" | grep -v 'ld: warning' || true
 rm -f "$BUILD_LOG"
+
+# Unit tests registered with CTest (cmake/skaar/tests.cmake), under UBSan
+if [ -f "$(build_dir safe)/CTestTestfile.cmake" ]; then
+    printf '[%s] running unit tests...\n' "$(now)"
+    TEST_LOG="$LOGS/smoke-tests-$STAMP.log"
+    if ! ctest --test-dir "$(build_dir safe)" --output-on-failure > "$TEST_LOG" 2>&1; then
+        tail -30 "$TEST_LOG"
+        fail "unit tests failed (see $TEST_LOG)"
+    fi
+    if grep -q 'runtime error:' "$TEST_LOG"; then
+        grep 'runtime error:' "$TEST_LOG" | head -10
+        fail "unit tests triggered UBSan reports (see $TEST_LOG)"
+    fi
+    tail -1 "$TEST_LOG" | grep -q 'No tests were found' || grep -E 'tests passed|Total Test' "$TEST_LOG" | tail -2
+fi
 
 LOG="$LOGS/smoke-$STAMP.log"
 BIN=$(server_bin safe)
