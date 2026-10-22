@@ -1,0 +1,13 @@
+{
+  "name": "Close strafe",
+  "category": "track",
+  "description": "A strafing target at close range. Big, fast, and it changes direction often.",
+  "duration": 60,
+  "fire": "hold",
+  "targets": {
+    "alive": 1, "radius": 26, "health": 1000,
+    "spawn": { "shape": "cone", "distance": 380, "yaw": [-45, 45], "pitch": [-6, 6] },
+    "motion": { "type": "strafe", "speed": [220, 360], "changeEvery": [0.25, 0.8] }
+  },
+  "score": { "perSecondOnTarget": 100 }
+}

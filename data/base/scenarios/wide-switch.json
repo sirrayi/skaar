@@ -1,0 +1,13 @@
+{
+  "name": "Wide switch",
+  "category": "switch",
+  "description": "Four targets spread wide, each down after 0.35 seconds on target. Clear the line, then the next.",
+  "duration": 60,
+  "fire": "hold",
+  "targets": {
+    "alive": 4, "radius": 18, "health": 0.35,
+    "spawn": { "shape": "cone", "distance": [550, 900], "yaw": [-70, 70], "pitch": [-6, 22] },
+    "motion": { "type": "float", "speed": [80, 180], "changeEvery": [0.6, 1.4] }
+  },
+  "score": { "kill": 100, "perSecondOnTarget": 100 }
+}

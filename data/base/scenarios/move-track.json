@@ -1,0 +1,14 @@
+{
+  "name": "Move and track",
+  "category": "track",
+  "description": "Strafe track, but you can move. Strafe with the target to keep the beam on it.",
+  "duration": 60,
+  "fire": "hold",
+  "player": { "move": true },
+  "targets": {
+    "alive": 1, "radius": 24, "health": 1000,
+    "spawn": { "shape": "cone", "distance": 750, "yaw": [-30, 30], "pitch": [0, 4] },
+    "motion": { "type": "strafe", "speed": [280, 460], "changeEvery": [0.3, 1.0] }
+  },
+  "score": { "perSecondOnTarget": 100 }
+}

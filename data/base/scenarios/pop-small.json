@@ -1,0 +1,12 @@
+{
+  "name": "Pop small",
+  "category": "click",
+  "description": "Small targets that vanish after 0.9 seconds. See it, flick, click.",
+  "duration": 60,
+  "fire": "click",
+  "targets": {
+    "alive": 1, "radius": 11, "health": 1, "lifetime": 0.9,
+    "spawn": { "shape": "cone", "distance": [700, 950], "yaw": [-30, 30], "pitch": [-5, 18] }
+  },
+  "score": { "kill": 100, "accuracyWeight": 0.6 }
+}
