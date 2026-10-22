@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 
+#include "../shared/reticle.h"
 #include "local.h"
 
 namespace ui {
@@ -91,72 +92,28 @@ void DrawCrosshairPreview(const Rect& r) {
     chart::Disc(r.x + r.w / 2 + 70, r.y + r.h / 2 - 46, 26, kEmber);
     Label(r.x + 20, r.Bottom() - 20, "PREVIEW", theme::kCreamFaint);
 
+    // the same reticle the game draws (game/shared/reticle.h), centred on a whole pixel
     const float s = kit::Scale();
     const float cx = std::floor((r.x + r.w / 2) * s) / s, cy = std::floor((r.y + r.h / 2) * s) / s;
-    const float len = std::fmax(0, trap::CvarValue("cg_crosshairSize"));
-    const float gap = std::fmax(0, trap::CvarValue("cg_crosshairGap"));
-    const float t = std::fmax(1.0f / s, trap::CvarValue("cg_crosshairThickness"));
-    const int style = static_cast<int>(trap::CvarValue("cg_crosshairStyle"));
-    const bool outline = trap::CvarValue("cg_crosshairOutline") != 0;
-    unsigned int hex = 0xebe6db;
-    std::sscanf(trap::CvarString("cg_crosshairColor").c_str(), "%6x", &hex);
-    const Color color = kit::Rgb((hex >> 16) & 255, (hex >> 8) & 255, hex & 255);
-    const Color dark = theme::kStage.Alpha(0.7f);  // outline: the ground colour
-    const float o = outline ? 1.0f / s : 0;
-
-    auto arms = [&](Color c, float g) {
-        kit::Fill(cx - gap - len - g, cy - t / 2 - g, len + 2 * g, t + 2 * g, c);
-        kit::Fill(cx + gap - g, cy - t / 2 - g, len + 2 * g, t + 2 * g, c);
-        kit::Fill(cx - t / 2 - g, cy - gap - len - g, t + 2 * g, len + 2 * g, c);
-        kit::Fill(cx - t / 2 - g, cy + gap - g, t + 2 * g, len + 2 * g, c);
-    };
-    auto dot = [&](Color c, float g) { kit::Fill(cx - t / 2 - g, cy - t / 2 - g, t + 2 * g, t + 2 * g, c); };
-    switch (style) {
-        case 1:
-            if (o > 0) {
-                dot(dark, o);
-            }
-            dot(color, 0);
-            break;
-        case 2:
-            if (o > 0) {
-                arms(dark, o);
-                dot(dark, o);
-            }
-            arms(color, 0);
-            dot(color, 0);
-            break;
-        case 3:
-            chart::Ring(cx, cy, gap + len, color, t);
-            dot(color, 0);
-            break;
-        default:
-            if (len > 0) {
-                if (o > 0) {
-                    arms(dark, o);
-                }
-                arms(color, 0);
-            }
-            break;
-    }
+    kit::DrawReticle(cx, cy, kit::ReticleFromCvars(trap::CvarString));
 }
 
 void DrawCrosshair(float top) {
     const float m = theme::kMargin, w = kit::Width();
     float y = top;
-    ChoiceRow(y, "Style", "cg_crosshairStyle", {{"0", "Cross"}, {"1", "Dot"}, {"2", "Cross + dot"}, {"3", "Ring + dot"}});
+    ChoiceRow(y, "Style", "cg_crosshairStyle", {{"0", "Cross"}, {"1", "Dot"}, {"2", "Cross + dot"}});
     y += kRowStep;
-    SliderRow(y, "Length", "cg_crosshairSize", 0, 30, 1, "%.0f");
+    SliderRow(y, "Length", "cg_crosshairSize", 0, 16, 1, "%.0f");
     y += kRowStep;
-    SliderRow(y, "Gap", "cg_crosshairGap", 0, 20, 1, "%.0f");
+    SliderRow(y, "Gap", "cg_crosshairGap", 0, 10, 1, "%.0f");
     y += kRowStep;
-    SliderRow(y, "Thickness", "cg_crosshairThickness", 1, 8, 0.5f, "%.1f");
+    SliderRow(y, "Thickness", "cg_crosshairThickness", 1, 6, 0.5f, "%.1f");
     y += kRowStep;
     ToggleRow(y, "Outline", "cg_crosshairOutline");
     y += kRowStep;
     ChoiceRow(y, "Colour", "cg_crosshairColor",
-              {{"ebe6db", "Cream"}, {"ffffff", "White"}, {"3cff7a", "Green"}, {"3ce8ff", "Cyan"}, {"ffe14d", "Yellow"},
-               {"ff4df0", "Magenta"}});
+              {{"f7e08a", "Pastel yellow"}, {"ffffff", "White"}, {"232323", "Graphite"}, {"3cff7a", "Green"},
+               {"3ce8ff", "Cyan"}, {"ff4df0", "Magenta"}});
     y += kRowStep;
     DrawCrosshairPreview({w - m - 420, top + kRowStep * 7 + 30, 420, 260});
     (void)y;

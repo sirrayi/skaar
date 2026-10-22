@@ -12,6 +12,8 @@
 #include "../shared/charts.h"
 #include "../shared/draw2d.h"
 #include "../shared/insights.h"
+#include "../shared/move_ruleset.h"
+#include "../shared/reticle.h"
 #include "../shared/runlog.h"
 #include "../shared/scenario.h"
 #include "../shared/trainer_sim.h"
@@ -97,12 +99,13 @@ void RegisterCvars() {
     trap::CvarRegister(&cv.dpi, "sk_dpi", "800", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.sensitivity, "sensitivity", "2", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.mYaw, "m_yaw", "0.022", CVAR_ARCHIVE);
-    trap::CvarRegister(&cv.chStyle, "cg_crosshairStyle", "0", CVAR_ARCHIVE);
-    trap::CvarRegister(&cv.chSize, "cg_crosshairSize", "10", CVAR_ARCHIVE);
-    trap::CvarRegister(&cv.chGap, "cg_crosshairGap", "4", CVAR_ARCHIVE);
-    trap::CvarRegister(&cv.chThickness, "cg_crosshairThickness", "2", CVAR_ARCHIVE);
-    trap::CvarRegister(&cv.chColor, "cg_crosshairColor", "232323", CVAR_ARCHIVE);
-    trap::CvarRegister(&cv.chOutline, "cg_crosshairOutline", "1", CVAR_ARCHIVE);
+    namespace rd = skaar::ui::reticle_defaults;
+    trap::CvarRegister(&cv.chStyle, "cg_crosshairStyle", rd::kStyle, CVAR_ARCHIVE);
+    trap::CvarRegister(&cv.chSize, "cg_crosshairSize", rd::kSize, CVAR_ARCHIVE);
+    trap::CvarRegister(&cv.chGap, "cg_crosshairGap", rd::kGap, CVAR_ARCHIVE);
+    trap::CvarRegister(&cv.chThickness, "cg_crosshairThickness", rd::kThickness, CVAR_ARCHIVE);
+    trap::CvarRegister(&cv.chColor, "cg_crosshairColor", rd::kColor, CVAR_ARCHIVE);
+    trap::CvarRegister(&cv.chOutline, "cg_crosshairOutline", rd::kOutline, CVAR_ARCHIVE);
     trap::CvarRegister(&cv.hitSound, "sk_hitSound", "1", CVAR_ARCHIVE);
 }
 
@@ -243,11 +246,11 @@ void SaveRun() {
     if (!trap::FileWrite(skaar::kHistoryPath, skaar::SummaryToJsonLine(s) + "\n", true)) {
         Com_Printf(S_COLOR_YELLOW "WARNING: trainer: could not append %s\n", skaar::kHistoryPath);
     }
-    st.lastFile = s.file;
-    st.history.push_back(s);
-    st.last = std::move(record);
     Com_Printf("trainer: %s  score %.0f  accuracy %.1f%%  kills %d  ttk %.0f ms%s\n", s.name.c_str(), s.score,
                s.accuracy * 100, s.kills, s.ttk, st.lastIsPb ? "  (personal best)" : "");
+    st.lastFile = s.file;
+    st.history.push_back(s);
+    st.last = std::move(record);  // s refers into record: last use above
 }
 
 // ---- replay ----------------------------------------------------------------------
@@ -345,72 +348,39 @@ void AdvanceReplay() {
 
 // ---- drawing ---------------------------------------------------------------------
 
-Color ParseColor(const char* hex, Color fallback) {
-    unsigned int v = 0;
-    if (std::sscanf(hex, "%6x", &v) != 1 || std::strlen(hex) < 6) {
-        return fallback;
-    }
-    return skaar::ui::Rgb((v >> 16) & 255, (v >> 8) & 255, v & 255);
-}
-
 void DrawCrosshair() {
-    // centre on a whole pixel so the arms are symmetric
-    const float s = kit::Scale();
-    const float cx = std::floor(cg.glconfig.vidWidth / 2.0f) / s, cy = std::floor(cg.glconfig.vidHeight / 2.0f) / s;
-    const float len = std::max(0.0f, cv.chSize.value), gap = std::max(0.0f, cv.chGap.value);
-    const float t = std::max(1.0f / s, cv.chThickness.value);
-    // "ebe6db" was the default on the old dark range and is archived in existing
-    // configs; it would vanish on the light range, so it means "default" now
-    Color color = Q_stricmp(cv.chColor.string, "ebe6db") ? ParseColor(cv.chColor.string, theme::kCream)
-                                                          : theme::kCream;
+    // the shared reticle (game/shared/reticle.h); kills flash it in the accent
+    skaar::ui::Reticle reticle = skaar::ui::ReticleFromCvars(trap::CvarString);
     if (cg.time < st.killFlashUntil) {
-        color = kTarget;
+        reticle.color = kTarget;
     }
-    const Color outline = theme::kStage.Alpha(0.7f);
-    const float o = cv.chOutline.integer ? 1.0f / s : 0;
-    const int style = cv.chStyle.integer;
-
-    auto arms = [&](Color c, float grow) {
-        kit::Fill(cx - gap - len - grow, cy - t / 2 - grow, len + 2 * grow, t + 2 * grow, c);
-        kit::Fill(cx + gap - grow, cy - t / 2 - grow, len + 2 * grow, t + 2 * grow, c);
-        kit::Fill(cx - t / 2 - grow, cy - gap - len - grow, t + 2 * grow, len + 2 * grow, c);
-        kit::Fill(cx - t / 2 - grow, cy + gap - grow, t + 2 * grow, len + 2 * grow, c);
-    };
-    auto dot = [&](Color c, float grow) { kit::Fill(cx - t / 2 - grow, cy - t / 2 - grow, t + 2 * grow, t + 2 * grow, c); };
-
-    switch (style) {
-        case 1:  // dot
-            if (o > 0) {
-                dot(outline, o);
-            }
-            dot(color, 0);
-            break;
-        case 2:  // cross + dot
-            if (o > 0) {
-                arms(outline, o);
-                dot(outline, o);
-            }
-            arms(color, 0);
-            dot(color, 0);
-            break;
-        case 3:  // ring + dot
-            chart::Ring(cx, cy, gap + len, color, t);
-            dot(color, 0);
-            break;
-        default:  // cross
-            if (o > 0 && len > 0) {
-                arms(outline, o);
-            }
-            if (len > 0) {
-                arms(color, 0);
-            }
-            break;
-    }
+    float cx, cy;
+    skaar::ui::ScreenCentre(&cx, &cy);
+    skaar::ui::DrawReticle(cx, cy, reticle);
 }
 
 std::string Clock(float seconds) {
     const int s = static_cast<int>(std::ceil(std::max(0.0f, seconds)));
     return skaar::Va("%d:%02d", s / 60, s % 60);
+}
+
+// Live numbers for a replay, from the recorded shots up to now (the replay sim
+// itself fires no shots, so its own accuracy would read 0)
+void ReplayNumbers(float* score, float* accuracy) {
+    const auto& shots = st.replay.shots;
+    int n = 0, hits = 0;
+    for (size_t i = 0; i < st.replayShot && i < shots.size(); i++) {
+        n++;
+        hits += shots[i].hit ? 1 : 0;
+    }
+    *accuracy = n > 0 ? static_cast<float>(hits) / n : 0;
+    const auto& sc = st.scenario.score;
+    if (st.scenario.fire == skaar::FireMode::kHold) {
+        // aim samples are 20 Hz while firing: each hit sample is ~0.05 s on target
+        *score = hits * 0.05f * sc.perSecondOnTarget + st.sim.Kills() * sc.kill;
+    } else {
+        *score = st.sim.Kills() * sc.kill * ((1 - sc.accuracyWeight) + sc.accuracyWeight * *accuracy);
+    }
 }
 
 void DrawRunHud(bool replay) {
@@ -420,8 +390,12 @@ void DrawRunHud(bool replay) {
     const float w = kit::Width();
     const TrainerSim& sim = st.sim;
 
-    f.display.Draw(w / 2, 96, 52, skaar::Va("%.0f", sim.Score()), theme::kCream.Alpha(0.86f), -0.01f, Align::kCenter);
-    std::string line = Clock(sim.Remaining()) + skaar::Va("   %.1f%%", sim.Accuracy() * 100);
+    float score = sim.Score(), accuracy = sim.Accuracy();
+    if (replay) {
+        ReplayNumbers(&score, &accuracy);
+    }
+    f.display.Draw(w / 2, 96, 52, skaar::Va("%.0f", score), theme::kCream.Alpha(0.86f), -0.01f, Align::kCenter);
+    std::string line = Clock(sim.Remaining()) + skaar::Va("   %.1f%%", accuracy * 100);
     if (replay) {
         line = "Replay   " + line;
     }
@@ -767,6 +741,11 @@ bool ConsoleCommand(const char* cmd) {
         const std::string id = trap::Argc() > 1 ? trap::Argv(1) : std::string(cv.scenario.string);
         trap::CvarSet("sk_scenario", id.c_str());
         if (LoadScenario(id)) {
+            // movement physics before the (re)start; the server follows g_movement
+            std::string text;
+            const bool known = skaar::move::FindRuleset(st.scenario.ruleset) >= 0 ||
+                               trap::FileRead(skaar::Va("rulesets/%s.json", st.scenario.ruleset.c_str()), text);
+            trap::CvarSet("g_movement", known ? st.scenario.ruleset.c_str() : "vq3");
             Restart();
         }
         return true;
