@@ -1,0 +1,13 @@
+{
+  "name": "Spray control",
+  "category": "tac",
+  "description": "Hold fire with the rifle and pull down against its kick. Three hits each.",
+  "duration": 60,
+  "fire": "hold",
+  "weapon": "rifle",
+  "targets": {
+    "alive": 1, "radius": 16, "health": 3,
+    "spawn": { "shape": "cone", "distance": 900, "yaw": [-10, 10], "pitch": [0, 6] }
+  },
+  "score": { "kill": 100, "accuracyWeight": 0.7 }
+}

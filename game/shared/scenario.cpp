@@ -72,6 +72,11 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
             throw std::runtime_error("fire must be \"click\" or \"hold\"");
         }
 
+        s.weapon = Get<std::string>(j, "weapon", "");
+        if (s.weapon.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-_") != std::string::npos) {
+            throw std::runtime_error("weapon must be a lowercase id like \"rifle\"");
+        }
+
         if (j.contains("targets")) {
             const json& t = j.at("targets");
             auto& o = s.targets;
@@ -190,6 +195,9 @@ std::string ScenarioToJson(const Scenario& s) {
     };
     if (s.seed) {
         j["seed"] = s.seed;
+    }
+    if (!s.weapon.empty()) {
+        j["weapon"] = s.weapon;
     }
     return j.dump(2) + "\n";
 }

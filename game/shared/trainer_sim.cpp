@@ -53,8 +53,14 @@ float AngleDelta(float a, float b) {
     return d;
 }
 
-void TrainerSim::Start(const Scenario& scenario, uint32_t seed, Vec3 eye, float baseYaw) {
+void TrainerSim::Start(const Scenario& scenario, uint32_t seed, Vec3 eye, float baseYaw, const WeaponDef* weapon) {
     *this = TrainerSim();
+    if (!weapon && !scenario.weapon.empty()) {
+        weapon = WeaponById(scenario.weapon);
+    }
+    if (weapon) {
+        weapon_ = *weapon;
+    }
     scenario_ = scenario;
     seed_ = seed;
     anchor_ = eye;
@@ -262,6 +268,27 @@ void TrainerSim::Kill(Target& target, float t) {
     Spawn(t);
 }
 
+void TrainerSim::SetMovement(float horizontalSpeed, bool onGround, bool crouched) {
+    moveSpeed_ = horizontalSpeed;
+    onGround_ = onGround;
+    crouched_ = crouched;
+}
+
+void TrainerSim::Punch(float t, float& up, float& right) const {
+    up = right = 0;
+    if (!weapon_ || weapon_->recoil.empty() || spray_ <= 0) {
+        return;
+    }
+    const float since = (t - lastShotT_) * 1000.0f;
+    if (weapon_->recoilRecoverMs <= 0 || since >= weapon_->recoilRecoverMs || since < 0) {
+        return;
+    }
+    const float k = since / weapon_->recoilRecoverMs;
+    SprayOffset(*weapon_, spray_, up, right);
+    up *= weapon_->cameraFollow * (1 - k * k);
+    right *= weapon_->cameraFollow * (1 - k * k);
+}
+
 TrainerEvents TrainerSim::Input(float t, Vec3 eye, float yaw, float pitch, bool pressed, bool held, float dt) {
     TrainerEvents ev;
     if (finished_) {
@@ -270,6 +297,29 @@ TrainerEvents TrainerSim::Input(float t, Vec3 eye, float yaw, float pitch, bool 
     Advance(t);
     if (finished_ && t > scenario_.duration) {
         return ev;
+    }
+
+    // A real gun: shots come at its refire (or per press when semi-auto), each one
+    // off the view by the spray pattern and the movement cone, scored like clicks.
+    bool weaponShot = false;
+    if (weapon_) {
+        const bool fire = weapon_->semiAuto ? pressed && t >= nextShotT_ : held && t >= nextShotT_;
+        if (fire) {
+            if ((t - lastShotT_) * 1000.0f > weapon_->recoilRecoverMs) {
+                spray_ = 0;
+            }
+            float up, right, su, sr;
+            SprayOffset(*weapon_, spray_, up, right);
+            const float cone = Inaccuracy(*weapon_, spray_ == 0, moveSpeed_, onGround_, crouched_);
+            SpreadSample(cone, static_cast<int>(t * 1000) * 31 + spray_ * 7919, su, sr);
+            yaw -= right + sr;  // yaw grows to the left
+            pitch += up + su;   // pitch grows up here
+            spray_++;
+            lastShotT_ = t;
+            nextShotT_ = t + weapon_->refireMs / 1000.0f;
+            weaponShot = true;
+        }
+        pressed = weaponShot;
     }
 
     const Vec3 dir = AnglesToDir(yaw, pitch);
@@ -314,7 +364,7 @@ TrainerEvents TrainerSim::Input(float t, Vec3 eye, float yaw, float pitch, bool 
         shotLog_.push_back(s);
     };
 
-    if (scenario_.fire == FireMode::kClick) {
+    if (scenario_.fire == FireMode::kClick || weapon_) {
         if (pressed) {
             shots_++;
             logShot(hitTarget != nullptr);
@@ -374,7 +424,7 @@ void TrainerSim::FlashSerial(int serial, float t) {
 }
 
 float TrainerSim::Accuracy() const {
-    if (scenario_.fire == FireMode::kHold) {
+    if (scenario_.fire == FireMode::kHold && !weapon_) {
         return firing_ > 0 ? onTarget_ / firing_ : 0;
     }
     return shots_ > 0 ? static_cast<float>(hits_) / shots_ : 0;
@@ -384,7 +434,7 @@ float TrainerSim::MeanTtk() const { return kills_ > 0 ? static_cast<float>(ttkSu
 
 float TrainerSim::Score() const {
     const auto& s = scenario_.score;
-    if (scenario_.fire == FireMode::kHold) {
+    if (scenario_.fire == FireMode::kHold && !weapon_) {
         return onTarget_ * s.perSecondOnTarget + kills_ * s.kill;
     }
     return kills_ * s.kill * ((1 - s.accuracyWeight) + s.accuracyWeight * Accuracy());

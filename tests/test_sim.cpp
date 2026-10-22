@@ -212,3 +212,33 @@ TEST("angle helpers") {
     CHECK_NEAR(d.y, 1, 1e-5);
     CHECK_NEAR(AnglesToDir(0, 90).z, 1, 1e-5);
 }
+
+TEST("a real gun in the trainer: refire, spray climbs, a pause resets it") {
+    WeaponDef rifle;
+    std::string error;
+    CHECK(ParseWeapon("rifle", R"({"slot": 2, "type": "hitscan", "refireMs": 100, "firstShotSpread": 0,
+        "inaccuracy": 0, "recoil": {"pattern": [[1, 0], [1, 0], [1, 0], [1, 0]], "recoverMs": 400, "cameraFollow": 0.5}})",
+                      rifle, error));
+    const Scenario sc = Make(R"({"duration": 20, "fire": "hold", "weapon": "rifle", "targets": {"alive": 1, "radius": 10,
+        "health": 1000, "spawn": {"distance": 1000, "yaw": 0, "pitch": 0}}})");
+    TrainerSim sim;
+    sim.Start(sc, 1, kEye, 0, &rifle);
+    CHECK(sim.HasWeapon());
+    float yaw, pitch;
+    AimAt(sim.TargetPosition(sim.Targets()[0]), yaw, pitch);
+    // hold for 0.5 s at 125 Hz: one shot per 100 ms = 5 shots; the first hits, the climb misses later ones
+    for (int i = 1; i <= 63; i++) {
+        sim.Input(i * 0.008f, kEye, yaw, pitch, i == 1, true, 0.008f);
+    }
+    CHECK(sim.Shots() == 5);
+    CHECK(sim.Hits() >= 1 && sim.Hits() < 5);  // 10 u at 1000 u is ~0.57 deg: 1 deg kicks leave it
+    float up, right;
+    sim.Punch(0.504f + 0.01f, up, right);
+    CHECK(up > 0.5f);  // the view kicks up with the spray
+    // after a pause longer than recoverMs, the spray starts over and the first shot hits again
+    const int hitsBefore = sim.Hits();
+    sim.Input(1.5f, kEye, yaw, pitch, true, true, 0.008f);
+    CHECK(sim.Hits() == hitsBefore + 1);
+    sim.Punch(3.0f, up, right);
+    CHECK(up == 0 && right == 0);
+}

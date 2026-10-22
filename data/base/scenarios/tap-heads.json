@@ -1,0 +1,13 @@
+{
+  "name": "Head taps",
+  "category": "tac",
+  "description": "Head-sized targets and the hand cannon. One clean tap each; spamming kicks you off.",
+  "duration": 60,
+  "fire": "click",
+  "weapon": "handcannon",
+  "targets": {
+    "alive": 1, "radius": 7, "health": 1,
+    "spawn": { "shape": "cone", "distance": [600, 1000], "yaw": [-25, 25], "pitch": [-2, 6] }
+  },
+  "score": { "kill": 100, "accuracyWeight": 0.7 }
+}

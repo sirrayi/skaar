@@ -88,7 +88,7 @@ struct State {
     vec3_t replayAngles{};
 
     qhandle_t model = 0, shader = 0;
-    sfxHandle_t hitSound = 0, killSound = 0;
+    sfxHandle_t hitSound = 0, killSound = 0, gunSound = 0;
 } st;
 
 Cvars cv;
@@ -192,6 +192,9 @@ void SetFreeze(bool frozen) { trap::SendClientCommand(frozen ? "sk_freeze 1" : "
 
 // New run: fresh seed (unless the scenario fixes one), targets placed, countdown.
 void BeginRun() {
+    st.gunSound = st.scenario.weapon.empty()
+                      ? 0
+                      : trap::S_RegisterSound(skaar::Va("sound/weapons/%s.wav", st.scenario.weapon.c_str()), false);
     st.seed = st.scenario.seed ? st.scenario.seed : NewSeed();
     st.sim.Start(st.scenario, st.seed, st.anchor, st.baseYaw);
     st.samples.clear();
@@ -648,6 +651,9 @@ void OnCommand(const usercmd_t& cmd, const playerState_t& ps) {
             return;
         }
         const float t = (cmd.serverTime - st.runStart) / 1000.0f;
+        // weapon scenarios: the player's movement widens the cone (counter-strafing matters)
+        st.sim.SetMovement(std::hypot(ps.velocity[0], ps.velocity[1]), ps.groundEntityNum != ENTITYNUM_NONE,
+                           ps.pm_flags & PMF_DUCKED);
         const skaar::TrainerEvents ev =
             st.sim.Input(t, eye, yaw, pitch, down && !st.attackWasDown, down, dt);
 
@@ -656,6 +662,9 @@ void OnCommand(const usercmd_t& cmd, const playerState_t& ps) {
             st.nextSample += 1.0f / skaar::kSampleHz;
         }
 
+        if (st.sim.HasWeapon() && (ev.hits || ev.misses) && st.gunSound) {
+            trap::S_StartLocalSound(st.gunSound, CHAN_WEAPON);
+        }
         if (ev.kills) {
             st.killFlashUntil = cg.time + kKillFlashMs;
             if (cv.hitSound.integer) {
@@ -799,6 +808,14 @@ bool ConsoleCommand(const char* cmd) {
 bool Active() { return st.phase != Phase::kOff && st.phase != Phase::kWaitSpawn; }
 
 void OverrideView(vec3_t origin, vec3_t angles) {
+    if (st.phase == Phase::kRunning && st.sim.HasWeapon()) {
+        // the gun's kick moves the camera (its cameraFollow share); bullets already include all of it
+        float up, right;
+        st.sim.Punch((cg.time - st.runStart) / 1000.0f, up, right);
+        angles[PITCH] -= up;
+        angles[YAW] -= right;
+        return;
+    }
     if (st.phase != Phase::kReplay) {
         return;
     }

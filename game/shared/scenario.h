@@ -33,6 +33,8 @@ struct Scenario {
     std::string ruleset = "vq3";  // movement physics: vq3 | cpm | rulesets/<id>.json (game/shared/move_ruleset.h)
 
     FireMode fire = FireMode::kClick;
+    std::string weapon;           // "" = the trainer's ideal gun; else a weapon id (data/base/weapons):
+                                  // shots follow its refire, spray pattern and spread (P7)
 
     struct Targets {
         int alive = 1;            // on screen at once

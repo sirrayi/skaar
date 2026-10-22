@@ -1,0 +1,14 @@
+{
+  "name": "Counter-strafe",
+  "category": "tac",
+  "description": "Keep moving between shots, then stop dead to shoot. Rifle shots fired on the move go wide.",
+  "duration": 60,
+  "fire": "hold",
+  "weapon": "rifle",
+  "player": { "move": true, "ruleset": "tac" },
+  "targets": {
+    "alive": 2, "radius": 12, "health": 1,
+    "spawn": { "shape": "cone", "distance": [700, 1100], "yaw": [-35, 35], "pitch": [-2, 8] }
+  },
+  "score": { "kill": 100, "accuracyWeight": 0.8 }
+}

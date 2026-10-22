@@ -15,8 +15,11 @@
 #include <cstdint>
 #include <vector>
 
+#include <optional>
+
 #include "runlog.h"
 #include "scenario.h"
+#include "weapons.h"
 
 namespace skaar {
 
@@ -57,7 +60,15 @@ struct TrainerEvents {
 class TrainerSim {
 public:
     // eye: where angles are measured from (the spawn eye); baseYaw: the spawn facing
-    void Start(const Scenario& scenario, uint32_t seed, Vec3 eye, float baseYaw);
+    // weapon: the gun for scenarios with "weapon" set (nullptr: look it up in the weapon registry)
+    void Start(const Scenario& scenario, uint32_t seed, Vec3 eye, float baseYaw, const WeaponDef* weapon = nullptr);
+
+    // With a weapon: the player's movement for its inaccuracy, before each Input
+    void SetMovement(float horizontalSpeed, bool onGround, bool crouched);
+
+    // With a weapon: the view kick at time t (degrees up / right), cameraFollow share, easing back
+    void Punch(float t, float& up, float& right) const;
+    bool HasWeapon() const { return weapon_.has_value(); }
 
     // Moves targets to time t (seconds since the run started). Times must not go back.
     void Advance(float t);
@@ -115,6 +126,13 @@ private:
     float firing_ = 0, onTarget_ = 0;  // hold mode, seconds
     double ttkSum_ = 0;
     float nextTrackSample_ = 0;
+
+    std::optional<WeaponDef> weapon_;
+    float moveSpeed_ = 0;
+    bool onGround_ = true, crouched_ = false;
+    int spray_ = 0;              // shots in the current spray
+    float lastShotT_ = -1000;
+    float nextShotT_ = 0;
 
     std::vector<ShotEvent> shotLog_;
     std::vector<KillEvent> killLog_;

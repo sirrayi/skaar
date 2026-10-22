@@ -554,6 +554,9 @@ def weapon_sounds(rate=22050):
     buzz = [0.25 * math.copysign(1, math.sin(2 * math.pi * 110 * i / rate)) * (0.6 + 0.4 * math.sin(2 * math.pi * 31 * i / rate))
             for i in range(int(rate * 0.12))]
     save_wav(buzz, "sound/weapons/lightning.wav")
+    # tac guns: a short sharp crack (rifle) and a deeper boom (hand cannon)
+    save_wav(mix(noise_burst(rate, 0.16, 0.025, 0.55, 1.1, 6), tone(420, 180, 0.08, 0.02, 0.35)), "sound/weapons/rifle.wav")
+    save_wav(mix(noise_burst(rate, 0.3, 0.05, 0.3, 1.5, 7), tone(220, 70, 0.2, 0.05, 0.5)), "sound/weapons/handcannon.wav")
     save_wav(tone(660, 990, 0.12, 0.05, 0.35), "sound/items/pickup.wav")
     save_wav(mix(tone(300, 180, 0.15, 0.05, 0.3), noise_burst(rate, 0.1, 0.03, 0.3, 0.3, 5)), "sound/player/pain.wav")
 

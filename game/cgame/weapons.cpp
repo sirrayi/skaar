@@ -83,6 +83,7 @@ struct State {
     int lightningCount = 0;
     std::array<int, MAX_GENTITIES> painTime{};
     std::array<int, MAX_GENTITIES> lastTrail{};
+    std::array<sfxHandle_t, 16> fireSound{};  // sound/weapons/<id>.wav by slot
 } st;
 
 void Sound(sfxHandle_t s) {
@@ -329,6 +330,9 @@ void Init() {
     media.pickup = trap::S_RegisterSound("sound/items/pickup.wav", false);
     media.pain = trap::S_RegisterSound("sound/player/pain.wav", false);
     media.hit = trap::S_RegisterSound("sound/feedback/hit.wav", false);
+    for (const skaar::WeaponDef& w : skaar::Weapons()) {
+        st.fireSound[w.slot] = trap::S_RegisterSound(skaar::Va("sound/weapons/%s.wav", w.id.c_str()), false);
+    }
     for (const char* cmd : {"weapon", "weapnext", "weapprev", "reload"}) {
         trap::AddCommand(cmd);  // reload goes on to the server (mode.cpp)
     }
@@ -455,23 +459,11 @@ void EntityEvent(const entityState_t& es, int event) {
 void PlayerEvent(int event, int /*eventParm*/, const playerState_t& ps) {
     switch (event) {
         case EV_FIRE_WEAPON:
-            switch (ps.weapon) {
-                case WP_RAILGUN:
-                    Sound(media.rail);
-                    break;
-                case WP_ROCKET_LAUNCHER:
-                    Sound(media.rocket);
-                    break;
-                case WP_SHOTGUN:
-                    Sound(media.shotgun);
-                    break;
-                case WP_LIGHTNING:
-                    if (st.lightningCount++ % 2 == 0) {  // its buzz is 120 ms, refire 50
-                        Sound(media.lightning);
-                    }
-                    break;
-                default:
-                    break;
+            if (ps.weapon == WP_LIGHTNING && st.lightningCount++ % 2) {
+                break;  // its buzz is 120 ms, refire 50
+            }
+            if (ps.weapon > 0 && ps.weapon < 16) {
+                Sound(st.fireSound[ps.weapon]);
             }
             break;
         case EV_ITEM_PICKUP:
