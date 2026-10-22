@@ -4,6 +4,7 @@
 //
 // This file is part of Skaar. GPLv2 or later.
 #include "local.h"
+#include "shared/move_ruleset.h"
 
 namespace cg {
 namespace {
@@ -17,6 +18,9 @@ void ServerCommand() {
     } else if (cmd == "cs") {
         // the engine already updated its copy; refresh ours
         trap::GetGameState(&cg.gameState);
+        if (atoi(trap::Argv(1).c_str()) == skaar::move::kConfigstringRuleset) {
+            SyncRuleset();
+        }
     } else if (cmd == "print" || cmd == "chat") {
         Com_Printf("%s", trap::Argv(1).c_str());
     } else if (cmd == "map_restart") {
@@ -62,6 +66,8 @@ void ResetEntity(CEntity& cent) {
 
 void SetInitialSnapshot(snapshot_t* snap) {
     cg.snap = snap;
+    // nothing was predicted before this, so there's no error to smooth out
+    cg.thisFrameTeleport = true;
     BG_PlayerStateToEntityState(&snap->ps, &entities[snap->ps.clientNum].current, qfalse);
     ExecuteNewServerCommands(snap->serverCommandSequence);
 

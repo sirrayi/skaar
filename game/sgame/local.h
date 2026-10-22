@@ -49,10 +49,11 @@ struct Level {
     std::string mapname;
     std::vector<SpawnPoint> spawns;
     size_t nextSpawn;
+    int ruleset;  // movement ruleset index (game/shared/move_ruleset.h)
 };
 
 struct Cvars {
-    vmCvar_t speed, gravity, pmoveFixed, pmoveMsec, cheats;
+    vmCvar_t speed, gravity, pmoveFixed, pmoveMsec, cheats, movement;
 };
 
 extern std::array<gentity_t, MAX_GENTITIES> g_entities;

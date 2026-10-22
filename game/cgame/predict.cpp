@@ -4,6 +4,7 @@
 //
 // This file is part of Skaar. GPLv2 or later.
 #include "local.h"
+#include "shared/move_pmove.h"
 #include "trainer.h"
 
 namespace cg {
@@ -76,7 +77,7 @@ void PredictPlayerState() {
             continue;
         }
         if (pm.pmove_fixed) {
-            PM_UpdateViewAngles(pm.ps, &cmd);  // view follows the mouse every frame
+            skaar::move::UpdateViewAngles(pm.ps, &cmd);  // view follows the mouse every frame
         }
         if (cmd.serverTime <= cg.predicted.commandTime || cmd.serverTime > latest.serverTime) {
             continue;  // already in the snapshot, or not sent yet
@@ -112,7 +113,7 @@ void PredictPlayerState() {
             cmd.serverTime = ((cmd.serverTime + pm.pmove_msec - 1) / pm.pmove_msec) * pm.pmove_msec;
         }
         pm.cmd = cmd;
-        Pmove(&pm);
+        skaar::move::Pmove(&pm);
         moved = true;
 
         // each command reaches the trainer once, the first time it's predicted

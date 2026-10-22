@@ -7,6 +7,7 @@
 #include "../shared/draw2d.h"
 #include "../shared/reticle.h"
 #include "local.h"
+#include "shared/move_ruleset.h"
 #include "trainer.h"
 
 namespace cg {
@@ -20,6 +21,14 @@ const char* ConfigString(int index) {
         Com_Error(ERR_DROP, "cgame: configstring %d out of range", index);
     }
     return cg.gameState.stringData + cg.gameState.stringOffsets[index];
+}
+
+// Mirrors the server's movement ruleset, so prediction matches (move_ruleset.h).
+void SyncRuleset() {
+    std::string error;
+    if (!skaar::move::DecodeRuleset(ConfigString(skaar::move::kConfigstringRuleset), error)) {
+        Com_Printf(S_COLOR_YELLOW "WARNING: movement ruleset from the server: %s\n", error.c_str());
+    }
 }
 
 namespace {
@@ -65,6 +74,7 @@ void Init(int serverMessageNum, int serverCommandSequence, int clientNum) {
     }
     cg.levelStartTime = atoi(ConfigString(CS_LEVEL_START_TIME));
     cg.mapname = Info_ValueForKey(ConfigString(CS_SERVERINFO), "mapname");
+    SyncRuleset();
 
     // the world: collision for prediction, geometry for the renderer
     const std::string bsp = "maps/" + cg.mapname + ".bsp";

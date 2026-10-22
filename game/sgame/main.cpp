@@ -6,6 +6,7 @@
 #include <exception>
 
 #include "local.h"
+#include "shared/move_ruleset.h"
 
 namespace sg {
 
@@ -23,10 +24,34 @@ void RegisterCvars() {
     trap::CvarRegister(&cvars.pmoveFixed, "pmove_fixed", "1", CVAR_SYSTEMINFO);
     trap::CvarRegister(&cvars.pmoveMsec, "pmove_msec", "8", CVAR_SYSTEMINFO);
     trap::CvarRegister(&cvars.cheats, "sv_cheats", "", 0);
+    // movement ruleset id: rulesets/<id>.json or a built-in (vq3, cpm)
+    trap::CvarRegister(&cvars.movement, "g_movement", "vq3", CVAR_SERVERINFO | CVAR_ARCHIVE);
 
     vmCvar_t unused;
     trap::CvarRegister(&unused, "g_gametype", "0", CVAR_SERVERINFO | CVAR_LATCH);
     trap::CvarRegister(&unused, "gamename", "skaar", CVAR_SERVERINFO | CVAR_ROM);
+}
+
+// Points level.ruleset at g_movement and tells clients its values, so
+// prediction runs the same physics.
+void SelectRuleset() {
+    int index = skaar::move::FindRuleset(cvars.movement.string);
+    if (index < 0) {
+        Com_Printf(S_COLOR_YELLOW "WARNING: g_movement: no ruleset '%s', using vq3\n", cvars.movement.string);
+        index = skaar::move::FindRuleset("vq3");
+    }
+    level.ruleset = index;
+    trap::SetConfigstring(skaar::move::kConfigstringRuleset, skaar::move::EncodeRuleset(index).c_str());
+}
+
+void LoadRulesets() {
+    std::vector<std::string> errors;
+    skaar::move::LoadRulesets(trap::FileList, [](const std::string& path, std::string& text) {
+        return trap::FileRead(path.c_str(), text);
+    }, errors);
+    for (const std::string& e : errors) {
+        Com_Printf(S_COLOR_YELLOW "WARNING: rulesets/%s\n", e.c_str());
+    }
 }
 
 void InitGame(int levelTime, int randomSeed, int restart) {
@@ -51,6 +76,8 @@ void InitGame(int levelTime, int randomSeed, int restart) {
 
     trap::SetConfigstring(CS_GAME_VERSION, GAME_VERSION);
     trap::SetConfigstring(CS_LEVEL_START_TIME, skaar::Va("%i", level.startTime));
+    LoadRulesets();
+    SelectRuleset();
 
     SpawnEntitiesFromString();
 
@@ -72,6 +99,12 @@ void RunFrame(int levelTime) {
     trap::CvarUpdate(&cvars.pmoveFixed);
     trap::CvarUpdate(&cvars.pmoveMsec);
     trap::CvarUpdate(&cvars.cheats);
+
+    const int movementCount = cvars.movement.modificationCount;
+    trap::CvarUpdate(&cvars.movement);
+    if (cvars.movement.modificationCount != movementCount) {
+        SelectRuleset();
+    }
 }
 
 intptr_t Dispatch(int command, int arg0, int arg1, int arg2) {

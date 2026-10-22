@@ -1,10 +1,11 @@
-// HUD: crosshair, speed, mode line, center print. Drawn with the shared kit
-// in the Skaar theme (docs/ui-style.md); crosshair options grow in P2.
+// HUD: reticle, speed, mode line, center print. Drawn with the shared kit
+// in the Skaar theme; the reticle is the shared one (game/shared/reticle.h).
 //
 // This file is part of Skaar. GPLv2 or later.
 #include <cmath>
 
 #include "../shared/draw2d.h"
+#include "../shared/reticle.h"
 #include "local.h"
 #include "trainer.h"
 
@@ -16,14 +17,9 @@ using namespace skaar::ui;
 constexpr int kCenterPrintMsec = 3000;
 
 void DrawCrosshair() {
-    const float cx = Width() / 2, cy = Height() / 2;
-    const float len = cvars.crosshairSize.value, gap = cvars.crosshairGap.value;
-    const float t = 2.0f;  // thickness
-    const Color c = theme::kCream;
-    Fill(cx - gap - len, cy - t / 2, len, t, c);
-    Fill(cx + gap, cy - t / 2, len, t, c);
-    Fill(cx - t / 2, cy - gap - len, t, len, c);
-    Fill(cx - t / 2, cy + gap, t, len, c);
+    float cx, cy;
+    ScreenCentre(&cx, &cy);
+    DrawReticle(cx, cy, ReticleFromCvars(trap::CvarString));
 }
 
 void DrawSpeed() {

@@ -11,7 +11,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(SKAAR_GAME_DIR ${CMAKE_SOURCE_DIR}/game)
 
-# Reused Q3 C code, compiled into each module with its own define
+# Reused Q3 C code, compiled into each module with its own define.
+# Movement is the C++ port in game/shared/move_*, not bg_pmove.c / bg_slidemove.c.
 set(SKAAR_MODULE_C_SOURCES
     ${SOURCE_DIR}/qcommon/q_math.c
     ${SOURCE_DIR}/qcommon/q_shared.c
@@ -19,8 +20,6 @@ set(SKAAR_MODULE_C_SOURCES
 )
 set(SKAAR_BG_SOURCES
     ${SOURCE_DIR}/game/bg_misc.c
-    ${SOURCE_DIR}/game/bg_pmove.c
-    ${SOURCE_DIR}/game/bg_slidemove.c
 )
 
 file(GLOB SKAAR_SHARED_SOURCES CONFIGURE_DEPENDS ${SKAAR_GAME_DIR}/shared/*.cpp)

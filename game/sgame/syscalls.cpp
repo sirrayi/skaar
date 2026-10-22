@@ -87,4 +87,16 @@ bool FileRead(const char* path, std::string& out) {
     return true;
 }
 
+std::vector<std::string> FileList(const char* dir, const char* extension) {
+    static char buf[64 * 1024];
+    const int count = static_cast<int>(g_syscall(G_FS_GETFILELIST, dir, extension, buf, sizeof(buf)));
+    std::vector<std::string> out;
+    const char* p = buf;
+    for (int i = 0; i < count && p < buf + sizeof(buf); i++) {
+        out.emplace_back(p);
+        p += out.back().size() + 1;
+    }
+    return out;
+}
+
 }  // namespace sg::trap

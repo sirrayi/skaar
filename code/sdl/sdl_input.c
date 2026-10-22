@@ -1340,8 +1340,12 @@ void IN_Frame( void )
 	IN_ProcessEvents( );
 
 #ifdef USE_RAW_MOUSE
-	// skaar: raw motion accumulated since the last frame, as one mouse event
-	IN_ReportMouseSource( );
+	// skaar: raw motion accumulated since the last frame, as one mouse event.
+	// Report the source only once the game owns the mouse: GCMouse attaches
+	// mice asynchronously (and not at all for a background app), so earlier
+	// it would warn about acceleration that never reaches the game.
+	if( mouseActive )
+		IN_ReportMouseSource( );
 	if( mouseActive && IN_RawMouseInUse( ) )
 	{
 		int dx, dy;
@@ -1354,7 +1358,8 @@ void IN_Frame( void )
 		}
 	}
 #else
-	IN_ReportMouseSource( );
+	if( mouseActive )
+		IN_ReportMouseSource( );
 #endif
 
 	// Set event time for next frame to earliest possible time an event could happen

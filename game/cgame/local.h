@@ -71,6 +71,7 @@ extern Cvars cvars;
 extern std::array<CEntity, MAX_GENTITIES> entities;
 
 const char* ConfigString(int index);
+void SyncRuleset();  // main.cpp: mirror the server's movement ruleset
 
 // snapshot.cpp
 void ProcessSnapshots();

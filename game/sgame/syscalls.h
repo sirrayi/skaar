@@ -4,6 +4,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "../shared/q3.h"
 
@@ -44,5 +45,6 @@ int PointContents(const vec3_t point, int passEntityNum);
 void GetUsercmd(int clientNum, usercmd_t* cmd);
 bool GetEntityToken(char* buffer, int size);
 bool FileRead(const char* path, std::string& out);
+std::vector<std::string> FileList(const char* dir, const char* extension);
 
 }  // namespace sg::trap

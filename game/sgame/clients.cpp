@@ -6,6 +6,8 @@
 #include <cstring>
 
 #include "local.h"
+#include "shared/move_pmove.h"
+#include "shared/move_ruleset.h"
 
 namespace sg {
 namespace {
@@ -185,6 +187,8 @@ void ClientThink(int clientNum) {
     client.ps.gravity = cvars.gravity.integer;
     client.ps.speed = cvars.speed.integer;
 
+    client.ps.stats[skaar::move::kStatRuleset] = level.ruleset;
+
     pmove_t pm{};
     pm.ps = &client.ps;
     pm.cmd = ucmd;
@@ -194,7 +198,7 @@ void ClientThink(int clientNum) {
     pm.noFootsteps = qtrue;
     pm.pmove_fixed = cvars.pmoveFixed.integer;
     pm.pmove_msec = msec;
-    Pmove(&pm);
+    skaar::move::Pmove(&pm);
 
     BG_PlayerStateToEntityState(&client.ps, &ent.s, qtrue);
     VectorCopy(client.ps.origin, ent.r.currentOrigin);
