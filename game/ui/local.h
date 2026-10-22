@@ -67,6 +67,8 @@ struct Data {
     std::vector<skaar::Scenario> scenarios;
     std::vector<std::pair<std::string, std::string>> scenarioErrors;  // id, error
     std::vector<skaar::Benchmark> benchmarks;
+    std::vector<std::pair<std::string, std::string>> benchmarkErrors;  // id, error
+    int historySkipped = 0;   // unreadable lines in stats/history.jsonl (kept on disk, left out here)
     std::vector<skaar::RunSummary> history;
     std::vector<skaar::ArenaSession> arena;  // stats/arena.jsonl
     std::map<std::string, skaar::insights::ScenarioStats> perScenario;

@@ -50,8 +50,10 @@ TEST("history skips bad lines") {
     b.scenario = "b";
     const std::string text = SummaryToJsonLine(a) + "\n\n{broken\n" + R"({"no":"scenario"})" + "\n" +
                              SummaryToJsonLine(b) + "\r\n";
-    const auto runs = ParseHistory(text);
+    int skipped = -1;
+    const auto runs = ParseHistory(text, &skipped);
     CHECK(runs.size() == 2);
+    CHECK(skipped == 2);  // "{broken" and the line without a scenario; blank lines don't count
     CHECK(runs.size() == 2 && runs[0].scenario == "a" && runs[1].scenario == "b");
 }
 

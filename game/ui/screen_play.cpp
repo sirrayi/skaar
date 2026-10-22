@@ -200,7 +200,7 @@ void DrawPlay() {
     }
     if (!data.scenarioErrors.empty()) {
         const auto& [id, error] = data.scenarioErrors.front();
-        Label(m, h - 150, skaar::Va("%zu SCENARIO FILE(S) NOT LOADED  ·  %s: %s", data.scenarioErrors.size(), id.c_str(),
+        Label(m, h - 150, skaar::Va("%zu FILE(S) NOT LOADED  ·  %s: %s", data.scenarioErrors.size(), id.c_str(),
                                     error.c_str()),
               kEmber);
     }

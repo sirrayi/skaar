@@ -890,6 +890,16 @@ void DrawInsights() {
         ui.focus = 0;
         ResetMarker();
     }
+    // problems with the data on disk, said plainly
+    if (data.historySkipped) {
+        Label(m, h - 96, skaar::Va("%d LINE(S) IN STATS/HISTORY.JSONL COULDN'T BE READ AND ARE LEFT OUT (THE FILE IS UNCHANGED)",
+                                   data.historySkipped),
+              kEmber);
+    }
+    if (!data.benchmarkErrors.empty() && ui.insightsTab == InsightsTab::kBenchmarks) {
+        const auto& [id, error] = data.benchmarkErrors.front();
+        Label(m, h - 120, skaar::Va("BENCHMARKS/%s.JSON NOT LOADED  ·  %s", id.c_str(), error.c_str()), kEmber);
+    }
     Footer("← →  TABS     ESC  BACK");
 }
 

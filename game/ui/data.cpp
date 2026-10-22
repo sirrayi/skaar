@@ -3,6 +3,7 @@
 // This file is part of Skaar. GPLv2 or later.
 #include <algorithm>
 
+#include "../shared/weapons.h"
 #include "local.h"
 
 namespace ui {
@@ -84,6 +85,16 @@ void LoadData() {
         return ra != rb ? ra < rb : a.category != b.category ? a.category < b.category : a.name < b.name;
     });
 
+    // weapon files: only checked here (the game modules load them); errors show next to the scenario list
+    for (const std::string& file : trap::FileList("weapons", ".json")) {
+        std::string text, error;
+        skaar::WeaponDef w;
+        if (trap::FileRead(skaar::Va("weapons/%s", file.c_str()), text) &&
+            !skaar::ParseWeapon(StripJson(file), text, w, error)) {
+            d.scenarioErrors.emplace_back("weapons/" + StripJson(file), error);
+        }
+    }
+
     for (const std::string& file : trap::FileList("benchmarks", ".json")) {
         std::string text, error;
         skaar::Benchmark b;
@@ -91,13 +102,18 @@ void LoadData() {
             skaar::ParseBenchmark(StripJson(file), text, b, error)) {
             d.benchmarks.push_back(std::move(b));
         } else if (!error.empty()) {
+            d.benchmarkErrors.emplace_back(StripJson(file), error);
             Com_Printf(S_COLOR_YELLOW "WARNING: benchmarks/%s: %s\n", file.c_str(), error.c_str());
         }
     }
 
     std::string history;
     if (trap::FileRead(skaar::kHistoryPath, history)) {
-        d.history = skaar::ParseHistory(history);
+        d.history = skaar::ParseHistory(history, &d.historySkipped);
+        if (d.historySkipped) {
+            Com_Printf(S_COLOR_YELLOW "WARNING: %s: %d unreadable line(s) left out\n", skaar::kHistoryPath,
+                       d.historySkipped);
+        }
     }
     std::string arena;
     if (trap::FileRead(skaar::kArenaHistoryPath, arena)) {

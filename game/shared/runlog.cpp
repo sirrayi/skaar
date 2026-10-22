@@ -124,8 +124,11 @@ bool SummaryFromJson(std::string_view line, RunSummary& out) {
     }
 }
 
-std::vector<RunSummary> ParseHistory(std::string_view text) {
+std::vector<RunSummary> ParseHistory(std::string_view text, int* skipped) {
     std::vector<RunSummary> runs;
+    if (skipped) {
+        *skipped = 0;
+    }
     size_t start = 0;
     while (start < text.size()) {
         size_t end = text.find('\n', start);
@@ -134,8 +137,12 @@ std::vector<RunSummary> ParseHistory(std::string_view text) {
         }
         const std::string_view line = text.substr(start, end - start);
         RunSummary s;
-        if (line.find_first_not_of(" \t\r") != std::string_view::npos && SummaryFromJson(line, s)) {
+        if (line.find_first_not_of(" \t\r") == std::string_view::npos) {
+            // blank line
+        } else if (SummaryFromJson(line, s)) {
             runs.push_back(std::move(s));
+        } else if (skipped) {
+            (*skipped)++;
         }
         start = end + 1;
     }

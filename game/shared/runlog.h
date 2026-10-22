@@ -78,8 +78,9 @@ struct RunRecord {
 
 std::string SummaryToJsonLine(const RunSummary& s);   // no trailing newline
 bool SummaryFromJson(std::string_view line, RunSummary& out);
-// Reads every valid line of history.jsonl, oldest first; bad lines are skipped.
-std::vector<RunSummary> ParseHistory(std::string_view text);
+// Reads every valid line of history.jsonl, oldest first; bad lines are skipped
+// (and counted in *skipped, if given), never fatal.
+std::vector<RunSummary> ParseHistory(std::string_view text, int* skipped = nullptr);
 
 std::string RecordToJson(const RunRecord& r);
 bool RecordFromJson(std::string_view text, RunRecord& out, std::string& error);
