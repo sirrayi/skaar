@@ -2,16 +2,18 @@
 
 CLAUDE.md product direction: tac-shooter feel, starting minimal with two weapons (inspired by the AK-47 and the
 Deagle; in the product they're "Rifle" and "Hand cannon"). Weapons stay data-driven: recoil patterns, spread,
-movement inaccuracy, counter-strafing. Status 2026-10-22 ~20:15: done and playable. Main menu › Tac range (rifle + hand cannon, tac movement, dummies);
+movement inaccuracy, counter-strafing. 
+
+Status 2026-10-22 ~20:15: done and playable. Main menu › Tac range (rifle + hand cannon, tac movement, dummies);
 Play › tac scenarios (Spray control, Head taps, Counter-strafe). All values are first guesses that need play-testing.
 
 ## Mechanics (all in the weapon JSON, docs/weapons.md)
 | Field | Meaning |
 |---|---|
-| `spread` (deg) | Base inaccuracy, standing still. `firstShotSpread` for the first shot after a pause. |
-| `moveSpread` (deg) | Added at full run speed, scaled by horizontal speed / `moveSpeedRef`. This is what makes counter-strafing (stopping before you shoot) matter. |
-| `airSpread` (deg) | Added while airborne. `crouchScale` multiplies the total while crouched. |
-| `recoil` | Per-shot `[pitch, yaw]` offsets in degrees, cumulative (the spray pattern). `recoilRecoverMs` resets the shot index after a pause. `cameraFollow` (0..1) is how much of the offset moves the view, the rest only moves the bullets. |
+| `inaccuracy` (deg) | Base cone, standing still. `firstShotSpread` for the first shot of a spray. |
+| `moveInaccuracy` (deg) | Added at full run speed, scaled by horizontal speed / `moveSpeedRef`. This is what makes counter-strafing (stopping before you shoot) matter. |
+| `airInaccuracy` (deg) | Added while airborne. `crouchScale` multiplies the total while crouched. |
+| `recoil` | `pattern`: per-shot `[up, right]` kicks in degrees, cumulative (the spray pattern). `recoverMs` resets the shot index after a pause. `cameraFollow` (0..1) is how much of the offset moves the view, the rest only moves the bullets. |
 | `damage`, `headMultiplier`, `falloff` | Body damage, head multiplier (head = top 12 u of the box), damage falloff `[start, end, minScale]` over distance. |
 | `magazine`, `reloadMs` | Magazine and reload. `reload` command, plus auto-reload when empty. |
 
