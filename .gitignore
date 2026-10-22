@@ -45,5 +45,6 @@ profile
 # Skaar
 ####################
 /.home/
+/.home-*/
 /logs/
 /build-*/

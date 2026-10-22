@@ -3,7 +3,10 @@
 
 REPO=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 LOGS="$REPO/logs"
-HOMEDIR="$REPO/.home"      # fs_homepath for dev runs: configs, screenshots, pipe
+# fs_homepath for dev runs: configs, screenshots, pipe. Automated/agent test
+# runs set SKAAR_DEV_HOME to their own dir so their +set overrides (windowed,
+# small window) never get archived into the human's config.
+HOMEDIR="${SKAAR_DEV_HOME:-$REPO/.home}"
 
 OS=$(uname -s)
 
