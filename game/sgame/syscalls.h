@@ -49,6 +49,7 @@ void GetUsercmd(int clientNum, usercmd_t* cmd);
 bool GetEntityToken(char* buffer, int size);
 bool FileRead(const char* path, std::string& out);
 bool FileWrite(const char* path, const std::string& data, bool append);
+int RealTime(qtime_t* t);
 std::vector<std::string> FileList(const char* dir, const char* extension);
 
 }  // namespace sg::trap

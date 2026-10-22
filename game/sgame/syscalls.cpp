@@ -108,6 +108,8 @@ bool FileWrite(const char* path, const std::string& data, bool append) {
     return true;
 }
 
+int RealTime(qtime_t* t) { return static_cast<int>(g_syscall(G_REAL_TIME, t)); }
+
 std::vector<std::string> FileList(const char* dir, const char* extension) {
     static char buf[64 * 1024];
     const int count = static_cast<int>(g_syscall(G_FS_GETFILELIST, dir, extension, buf, sizeof(buf)));
