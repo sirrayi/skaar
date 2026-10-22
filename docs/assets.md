@@ -10,6 +10,8 @@ Every file in `data/` must be listed here with its source and license.
 | `data/base/console.tga` | Generated (gradient) | GPLv2-or-later |
 | `data/base/white.tga` | Generated (solid white) | GPLv2-or-later |
 | `data/base/sound/feedback/hit.wav` | Generated (synthesized tick); also the engine's required default sound | GPLv2-or-later |
+| `data/base/textures/skaar/grid_*.tga` | Generated dev-grid textures | GPLv2-or-later |
+| `data/maps-src/*.json` | Original map sources, compiled by `tools/mapc` | GPLv2-or-later |
 
 Regenerate: `python3 tools/gen_placeholder_assets.py` (needs `pip install pillow`).
 

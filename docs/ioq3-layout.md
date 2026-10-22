@@ -34,12 +34,12 @@ SDL2: bundled universal dylib on macOS/Windows (`USE_INTERNAL_SDL`), `find_packa
 - With `0`, `FS_FindVM` searches each game dir for `<name>.dylib` (`.so` on Linux, `.dll` on Windows) and `Sys_LoadGameDll` dlopens it, looking up `dllEntry`
   (receives the syscall function pointer) and `vmMain` (the engine calls this with a command number + args).
 - With `2`, only `vm/<name>.qvm` is searched, which is why stock ioq3 fails to start without QVMs.
-- Skaar defaults all three to `0` when `STANDALONE` is defined (`vm.c`), so no command-line flags are needed.
+- When `STANDALONE` is defined, Skaar defaults all three to `0` and `VM_Create` forces native loading, so stale archived values like `vm_game 2` can't break it (`vm.c`).
 - Module ABI: the syscall numbers and `vmMain` commands in `game/g_public.h`, `cgame/cg_public.h`, `ui/ui_public.h`. A C++ module
   must export `extern "C" dllEntry` and `vmMain` with the same signatures, and never throw across that boundary.
 
-## Reloading native modules (needed for the dev loop, verified in P0.5)
-- qagame: reloaded on `map <name>` / `map_restart`? (to verify: `SV_SpawnServer` calls `SV_ShutdownGameProgs` and then `SV_InitGameProgs`).
-- cgame: recreated on every map load/reconnect (`CL_InitCGame`).
-- ui: recreated on `vid_restart` (`CL_Vid_Restart_f` shuts down and re-inits the UI).
-- The dlopen cache: macOS keeps a dylib loaded while any handle is open. The engine dlcloses on shutdown, so a rebuilt dylib is picked up.
+## Reloading native modules (verified in P0.5, details in docs/dev-loop.md)
+- qagame: `map_restart 0` (`VM_Restart` dlcloses and dlopens again) or any `map`/`devmap` (`SV_SpawnServer`).
+- cgame: `vid_restart`, or any map load/reconnect (`CL_InitCGame`).
+- ui: `vid_restart`.
+- Rebuilt dylibs are picked up: the engine dlcloses on unload, and the linker replaces the file rather than rewriting it in place.

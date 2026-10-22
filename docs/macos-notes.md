@@ -24,3 +24,23 @@ Only 8 `-Wunknown-pragmas` warnings (MSVC pragmas) and the linker note below rem
 ## Linker warning
 `ld: warning: reducing alignment of section __DATA,__common from 0x8000 to 0x4000` appears when linking the client and server.
 It's harmless (comes from a large aligned global in upstream code). We leave it alone.
+
+## Command Line Tools older than the OS: lldb and ASan break (macOS 27 + CLT 17)
+With macOS 27.0.1 and the Command Line Tools from Xcode 16 (Apple clang 17, lldb-1700):
+- `lldb` crashes with SIGBUS in `ObjectFileMachO::ParseSymtab` as soon as it creates a target, even for `/bin/echo`.
+- AddressSanitizer binaries deadlock at startup (`__asan::InitializeShadowMemory` → `dyld_shared_cache_iterate_text_swift` → malloc).
+  An empty `int main(){}` built with `-fsanitize=address` never exits.
+- UBSan and the compiler itself work fine.
+
+Fix: install the matching tools (`softwareupdate --list` shows "Command Line Tools for Xcode 27.0"):
+```sh
+softwareupdate --install "Command Line Tools for Xcode 27.0-27.0"
+```
+Until then the scripts degrade on their own and say so:
+- `dev.sh` probes lldb and runs without a debugger. The engine's crash handler still writes `logs/crash-*.txt` with a backtrace.
+- `build.sh safe` probes ASan and builds with UBSan only.
+After updating, delete `build-safe/` (or just run `build.sh safe`, which re-probes) to get ASan back.
+
+## Writing to a pipe path that doesn't exist yet creates a file
+`echo cmd > .home/base/dev.pipe` before the game has created the FIFO makes a regular file. The engine then can't create the
+pipe and silently runs without one. The scripts only write when `[ -p path ]` is true.
