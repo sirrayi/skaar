@@ -288,8 +288,11 @@ void Con_CheckResize (void)
 
 	if (con_scale != NULL)
 	{
-		g_smallchar_width = (int)((float)SMALLCHAR_WIDTH * con_scale->value);
-		g_smallchar_height = (int)((float)SMALLCHAR_HEIGHT * con_scale->value);
+		// skaar: con_scale is in points; on HiDPI displays a point is several pixels
+		float pixelRatio = Cvar_VariableValue( "r_pixelRatio" );
+		float scale = con_scale->value * ( pixelRatio >= 1.0f ? pixelRatio : 1.0f );
+		g_smallchar_width = (int)((float)SMALLCHAR_WIDTH * scale);
+		g_smallchar_height = (int)((float)SMALLCHAR_HEIGHT * scale);
 	}
 
 	width = (cls.glconfig.vidWidth / g_smallchar_width) - 2;

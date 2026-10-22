@@ -1,0 +1,12 @@
+{
+  "name": "Pop",
+  "category": "click",
+  "description": "Targets vanish after 1.1 seconds. React, then click.",
+  "duration": 60,
+  "fire": "click",
+  "targets": {
+    "alive": 2, "radius": 16, "health": 1, "lifetime": 1.1,
+    "spawn": { "shape": "cone", "distance": [650, 900], "yaw": [-35, 35], "pitch": [-6, 20] }
+  },
+  "score": { "kill": 100, "accuracyWeight": 0.5 }
+}

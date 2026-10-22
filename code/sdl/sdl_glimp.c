@@ -50,6 +50,7 @@ static SDL_GLContext SDL_glContext = NULL;
 
 cvar_t *r_allowSoftwareGL; // Don't abort out if a hardware visual can't be obtained
 cvar_t *r_allowResize; // make window resizable
+cvar_t *r_allowHighDPI; // skaar: render at the display's physical resolution (Retina)
 cvar_t *r_centerWindow;
 cvar_t *r_sdlDriver;
 cvar_t *r_preferOpenGLES;
@@ -415,6 +416,11 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 
 	if ( r_allowResize->integer )
 		flags |= SDL_WINDOW_RESIZABLE;
+
+	// skaar: without this, macOS renders at half resolution on Retina
+	// displays and upscales it, which blurs all text
+	if ( r_allowHighDPI->integer )
+		flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 
 #ifdef USE_ICON
 	icon = SDL_CreateRGBSurfaceFrom(
@@ -794,6 +800,25 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 
 		SDL_SetWindowIcon( SDL_window, icon );
 
+		// skaar: the window size is in points; render at its drawable (pixel) size
+		{
+			int drawableWidth = 0, drawableHeight = 0, windowWidth = 0, windowHeight = 0;
+			SDL_GL_GetDrawableSize( SDL_window, &drawableWidth, &drawableHeight );
+			SDL_GetWindowSize( SDL_window, &windowWidth, &windowHeight );
+			// pixels per point, for the client's console text scale
+			ri.Cvar_Set( "r_pixelRatio", va( "%g", ( windowHeight > 0 && drawableHeight > 0 ) ?
+				(float)drawableHeight / (float)windowHeight : 1.0f ) );
+			if ( drawableWidth > 0 && drawableHeight > 0 &&
+				( drawableWidth != glConfig.vidWidth || drawableHeight != glConfig.vidHeight ) )
+			{
+				ri.Printf( PRINT_ALL, "HiDPI: drawable %dx%d for a %dx%d window\n",
+					drawableWidth, drawableHeight, windowWidth, windowHeight );
+				glConfig.vidWidth = drawableWidth;
+				glConfig.vidHeight = drawableHeight;
+				glConfig.windowAspect = (float)drawableWidth / (float)drawableHeight;
+			}
+		}
+
 		qglClearColor( 0, 0, 0, 1 );
 		qglClear( GL_COLOR_BUFFER_BIT );
 		SDL_GL_SwapWindow( SDL_window );
@@ -1082,6 +1107,8 @@ void GLimp_Init( qboolean fixedFunction )
 	r_allowSoftwareGL = ri.Cvar_Get( "r_allowSoftwareGL", "0", CVAR_LATCH );
 	r_sdlDriver = ri.Cvar_Get( "r_sdlDriver", "", CVAR_ROM );
 	r_allowResize = ri.Cvar_Get( "r_allowResize", "0", CVAR_ARCHIVE | CVAR_LATCH );
+	r_allowHighDPI = ri.Cvar_Get( "r_allowHighDPI", "1", CVAR_ARCHIVE | CVAR_LATCH );
+	ri.Cvar_Get( "r_pixelRatio", "1", CVAR_ROM );
 	r_centerWindow = ri.Cvar_Get( "r_centerWindow", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_preferOpenGLES = ri.Cvar_Get( "r_preferOpenGLES", "-1", CVAR_ARCHIVE | CVAR_LATCH );
 

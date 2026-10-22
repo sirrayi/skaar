@@ -1,0 +1,24 @@
+// Aim range: the default map for trainer scenarios (data/base/scenarios).
+// The player spawns at the origin facing +x; scenarios place targets by angle
+// and distance from there, up to ~1400 units out. Compiled by tools/mapc.
+{
+  "name": "range",
+  "message": "Skaar Range",
+  "materials": {
+    "floor": "textures/skaar/range_floor",
+    "wall": "textures/skaar/range_wall",
+    "ceiling": "textures/skaar/range_ceiling",
+    "pad": "textures/skaar/range_pad"
+  },
+  "light": { "ambient": 0.55, "sun": 0.35, "sunDir": [0.3, 0.2, -1] },
+  "rooms": [
+    { "min": [-384, -1792, 0], "max": [2560, 1792, 1280], "wall": 32,
+      "floor": "floor", "walls": "wall", "ceiling": "ceiling" }
+  ],
+  "brushes": [
+    { "min": [-64, -64, 0], "max": [64, 64, 8], "material": "pad" }
+  ],
+  "entities": [
+    { "classname": "info_player_deathmatch", "origin": [0, 0, 40], "angle": 0 }
+  ]
+}

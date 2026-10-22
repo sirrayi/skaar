@@ -1,0 +1,12 @@
+{
+  "name": "Wide flick",
+  "category": "click",
+  "description": "One target anywhere in a wide arc. Commit to the flick.",
+  "duration": 60,
+  "fire": "click",
+  "targets": {
+    "alive": 1, "radius": 18, "health": 1,
+    "spawn": { "shape": "cone", "distance": [700, 900], "yaw": [-60, 60], "pitch": [-8, 28] }
+  },
+  "score": { "kill": 100, "accuracyWeight": 0.5 }
+}

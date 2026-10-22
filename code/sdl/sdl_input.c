@@ -404,8 +404,13 @@ static void IN_DeactivateMouse( qboolean isFullscreen )
 		SDL_SetRelativeMouseMode( SDL_FALSE );
 
 		// Don't warp the mouse unless the cursor is within the window
+		// (skaar: warp coordinates are window points, not drawable pixels)
 		if( SDL_GetWindowFlags( SDL_window ) & SDL_WINDOW_MOUSE_FOCUS )
-			SDL_WarpMouseInWindow( SDL_window, cls.glconfig.vidWidth / 2, cls.glconfig.vidHeight / 2 );
+		{
+			int windowWidth, windowHeight;
+			SDL_GetWindowSize( SDL_window, &windowWidth, &windowHeight );
+			SDL_WarpMouseInWindow( SDL_window, windowWidth / 2, windowHeight / 2 );
+		}
 
 		mouseActive = qfalse;
 	}
@@ -1179,9 +1184,14 @@ static void IN_ProcessEvents( void )
 							}
 
 							// check if size actually changed
-							if( cls.glconfig.vidWidth == width && cls.glconfig.vidHeight == height )
+							// (skaar: vidWidth/Height are drawable pixels, the event is in points)
 							{
-								break;
+								int drawableWidth = width, drawableHeight = height;
+								SDL_GL_GetDrawableSize( SDL_window, &drawableWidth, &drawableHeight );
+								if( cls.glconfig.vidWidth == drawableWidth && cls.glconfig.vidHeight == drawableHeight )
+								{
+									break;
+								}
 							}
 
 							Cvar_SetValue( "r_customwidth", width );

@@ -1,0 +1,13 @@
+{
+  "name": "Switch trio",
+  "category": "switch",
+  "description": "Three moving targets. Each dies after half a second on target. Switch fast.",
+  "duration": 60,
+  "fire": "hold",
+  "targets": {
+    "alive": 3, "radius": 20, "health": 0.5,
+    "spawn": { "shape": "cone", "distance": [600, 850], "yaw": [-45, 45], "pitch": [-4, 18] },
+    "motion": { "type": "strafe", "speed": [120, 260], "changeEvery": [0.4, 1.2] }
+  },
+  "score": { "kill": 100, "perSecondOnTarget": 100 }
+}

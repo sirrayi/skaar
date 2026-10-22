@@ -1,0 +1,15 @@
+// Format: docs/scenarios.md. Thresholds are first guesses, not yet calibrated against real players.
+{
+  "name": "Core",
+  "description": "Seven scenarios across clicking, tracking and switching.",
+  "tiers": ["Spark", "Ember", "Flare", "Blaze", "Nova", "Zenith"],
+  "scenarios": [
+    { "id": "wall-grid",    "thresholds": [5000, 7000, 9000, 11000, 13000, 15000] },
+    { "id": "micro-flick",  "thresholds": [2500, 3500, 4500, 5500, 6500, 7500] },
+    { "id": "wide-flick",   "thresholds": [2000, 3000, 4000, 5000, 6000, 7000] },
+    { "id": "pop",          "thresholds": [3000, 4200, 5400, 6600, 7800, 9000] },
+    { "id": "strafe-track", "thresholds": [2400, 3000, 3600, 4200, 4800, 5400] },
+    { "id": "float-track",  "thresholds": [2400, 3000, 3600, 4200, 4800, 5400] },
+    { "id": "switch-trio",  "thresholds": [4000, 5500, 7000, 8500, 10000, 11500] }
+  ]
+}

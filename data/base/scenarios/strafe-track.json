@@ -1,0 +1,13 @@
+{
+  "name": "Strafe track",
+  "category": "track",
+  "description": "One target strafing left and right. Keep the beam on it.",
+  "duration": 60,
+  "fire": "hold",
+  "targets": {
+    "alive": 1, "radius": 24, "health": 1000,
+    "spawn": { "shape": "cone", "distance": 700, "yaw": [-30, 30], "pitch": [0, 4] },
+    "motion": { "type": "strafe", "speed": [260, 420], "changeEvery": [0.3, 1.1] }
+  },
+  "score": { "perSecondOnTarget": 100 }
+}

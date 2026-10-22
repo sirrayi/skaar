@@ -1,0 +1,13 @@
+// Format: docs/scenarios.md
+{
+  "name": "Wall grid",
+  "category": "click",
+  "description": "Three targets on a 5×5 wall. Clear them as fast as you can.",
+  "duration": 60,
+  "fire": "click",
+  "targets": {
+    "alive": 3, "radius": 22, "health": 1,
+    "spawn": { "shape": "grid", "cols": 5, "rows": 5, "distance": 700, "yaw": [-16, 16], "pitch": [-6, 14] }
+  },
+  "score": { "kill": 100, "accuracyWeight": 0.5 }
+}

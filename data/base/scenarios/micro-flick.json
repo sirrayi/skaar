@@ -1,0 +1,12 @@
+{
+  "name": "Micro flick",
+  "category": "click",
+  "description": "One small target, close to the last. Precision over speed.",
+  "duration": 60,
+  "fire": "click",
+  "targets": {
+    "alive": 1, "radius": 9, "health": 1,
+    "spawn": { "shape": "cone", "distance": [850, 950], "yaw": [-12, 12], "pitch": [-4, 9] }
+  },
+  "score": { "kill": 100, "accuracyWeight": 0.6 }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Float track",
+  "category": "track",
+  "description": "A target drifting in every direction. Smooth hands win.",
+  "duration": 60,
+  "fire": "hold",
+  "targets": {
+    "alive": 1, "radius": 20, "health": 1000,
+    "spawn": { "shape": "cone", "distance": [600, 800], "yaw": [-35, 35], "pitch": [-6, 24] },
+    "motion": { "type": "float", "speed": [150, 300], "changeEvery": [0.5, 1.4] }
+  },
+  "score": { "perSecondOnTarget": 100 }
+}
