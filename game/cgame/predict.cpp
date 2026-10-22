@@ -19,6 +19,31 @@ void Trace(trace_t* result, const vec3_t start, const vec3_t mins, const vec3_t 
 
 int PointContents(const vec3_t point, int /*passEntityNum*/) { return trap::CM_PointContents(point, 0); }
 
+// Jump pads, predicted like the server applies them (sg::TouchTriggers), so a
+// pad launch doesn't show up as a prediction miss
+void TouchTriggers(const pmove_t& pm) {
+    playerState_t& ps = cg.predicted;
+    if (ps.jumppad_frame != ps.pmove_framecount) {
+        ps.jumppad_ent = 0;
+    }
+    if (ps.pm_type != PM_NORMAL) {
+        return;
+    }
+    for (int i = 0; i < cg.snap->numEntities; i++) {
+        entityState_t& es = cg.snap->entities[i];
+        if (es.eType != ET_PUSH_TRIGGER) {
+            continue;
+        }
+        trace_t tr;
+        const vec3_t angles = {0, 0, 0};
+        trap::CM_TransformedBoxTrace(&tr, ps.origin, ps.origin, pm.mins, pm.maxs, trap::CM_InlineModel(es.modelindex),
+                                     -1, es.origin, angles);
+        if (tr.startsolid) {
+            BG_TouchJumpPad(&ps, &es);
+        }
+    }
+}
+
 }  // namespace
 
 void PredictPlayerState() {
@@ -114,6 +139,7 @@ void PredictPlayerState() {
         }
         pm.cmd = cmd;
         skaar::move::Pmove(&pm);
+        TouchTriggers(pm);
         moved = true;
 
         // each command reaches the trainer once, the first time it's predicted

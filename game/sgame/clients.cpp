@@ -138,6 +138,25 @@ void ClientCommand(int clientNum) {
             client.noclip = !client.noclip;
             SendPrint(clientNum, client.noclip ? "noclip ON\n" : "noclip OFF\n");
         }
+    } else if (!Q_stricmp(cmd.c_str(), "setviewpos")) {
+        // setviewpos x y z [yaw]: teleport, for testing (cheat)
+        if (CheatsAllowed(clientNum)) {
+            if (trap::Argc() < 4) {
+                SendPrint(clientNum, "usage: setviewpos x y z [yaw]\n");
+            } else {
+                gentity_t& ent = EntityFor(clientNum);
+                vec3_t angles = {0, static_cast<float>(atof(trap::Argv(4).c_str())), 0};
+                for (int i = 0; i < 3; i++) {
+                    client.ps.origin[i] = static_cast<float>(atof(trap::Argv(i + 1).c_str()));
+                }
+                client.ps.origin[2] -= DEFAULT_VIEWHEIGHT;  // the arguments are the eye position, as viewpos prints
+                VectorClear(client.ps.velocity);
+                client.ps.eFlags ^= EF_TELEPORT_BIT;
+                SetViewAngles(client, ent, angles);
+                BG_PlayerStateToEntityState(&client.ps, &ent.s, qtrue);
+                trap::LinkEntity(&ent);
+            }
+        }
     } else if (!Q_stricmp(cmd.c_str(), "sk_freeze")) {
         // sent by the aim trainer for scenarios where the player doesn't move
         client.frozen = atoi(trap::Argv(1).c_str()) != 0;
@@ -204,7 +223,38 @@ void ClientThink(int clientNum) {
     VectorCopy(client.ps.origin, ent.r.currentOrigin);
     VectorCopy(pm.mins, ent.r.mins);
     VectorCopy(pm.maxs, ent.r.maxs);
+    TouchTriggers(ent, client);
+    BG_PlayerStateToEntityState(&client.ps, &ent.s, qtrue);
     trap::LinkEntity(&ent);
+}
+
+// Triggers the player's box overlaps after this move (jump pads for now)
+void TouchTriggers(gentity_t& ent, gclient_t& client) {
+    // jumppad_ent marks "already touching this pad" for the event; it lapses
+    // once a move happens without touching it
+    if (client.ps.jumppad_frame != client.ps.pmove_framecount) {
+        client.ps.jumppad_ent = 0;
+    }
+    if (client.ps.pm_type != PM_NORMAL) {
+        return;
+    }
+
+    vec3_t mins, maxs;
+    VectorAdd(client.ps.origin, ent.r.mins, mins);
+    VectorAdd(client.ps.origin, ent.r.maxs, maxs);
+
+    int list[MAX_GENTITIES];
+    const int n = trap::EntitiesInBox(mins, maxs, list, MAX_GENTITIES);
+    for (int i = 0; i < n; i++) {
+        gentity_t& other = g_entities[list[i]];
+        if (!(other.r.contents & CONTENTS_TRIGGER) || other.s.eType != ET_PUSH_TRIGGER) {
+            continue;
+        }
+        if (!trap::EntityContact(mins, maxs, &other)) {
+            continue;
+        }
+        BG_TouchJumpPad(&client.ps, &other.s);
+    }
 }
 
 }  // namespace sg

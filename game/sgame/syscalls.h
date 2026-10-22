@@ -37,6 +37,9 @@ void DropClient(int clientNum, const char* reason);
 void SendServerCommand(int clientNum, const char* text);
 void SetConfigstring(int num, const char* value);
 std::string GetUserinfo(int clientNum);
+void SetBrushModel(gentity_t* ent, const char* name);
+int EntitiesInBox(const vec3_t mins, const vec3_t maxs, int* list, int maxcount);
+bool EntityContact(const vec3_t mins, const vec3_t maxs, const gentity_t* ent);
 void LinkEntity(gentity_t* ent);
 void UnlinkEntity(gentity_t* ent);
 void Trace(trace_t* results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,

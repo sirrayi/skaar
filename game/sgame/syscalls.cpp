@@ -59,6 +59,16 @@ std::string GetUserinfo(int clientNum) {
     return buf;
 }
 
+void SetBrushModel(gentity_t* ent, const char* name) { g_syscall(G_SET_BRUSH_MODEL, ent, name); }
+
+int EntitiesInBox(const vec3_t mins, const vec3_t maxs, int* list, int maxcount) {
+    return static_cast<int>(g_syscall(G_ENTITIES_IN_BOX, mins, maxs, list, maxcount));
+}
+
+bool EntityContact(const vec3_t mins, const vec3_t maxs, const gentity_t* ent) {
+    return g_syscall(G_ENTITY_CONTACT, mins, maxs, ent) != 0;
+}
+
 void LinkEntity(gentity_t* ent) { g_syscall(G_LINKENTITY, ent); }
 void UnlinkEntity(gentity_t* ent) { g_syscall(G_UNLINKENTITY, ent); }
 

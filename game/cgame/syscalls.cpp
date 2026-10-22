@@ -91,6 +91,14 @@ int CM_PointContents(const vec3_t point, clipHandle_t model) {
     return static_cast<int>(g_syscall(CG_CM_POINTCONTENTS, point, model));
 }
 
+clipHandle_t CM_InlineModel(int index) { return static_cast<clipHandle_t>(g_syscall(CG_CM_INLINEMODEL, index)); }
+
+void CM_TransformedBoxTrace(trace_t* results, const vec3_t start, const vec3_t end, const vec3_t mins,
+                            const vec3_t maxs, clipHandle_t model, int brushmask, const vec3_t origin,
+                            const vec3_t angles) {
+    g_syscall(CG_CM_TRANSFORMEDBOXTRACE, results, start, end, mins, maxs, model, brushmask, origin, angles);
+}
+
 void R_LoadWorldMap(const char* name) { g_syscall(CG_R_LOADWORLDMAP, name); }
 qhandle_t R_RegisterShader(const char* name) { return static_cast<qhandle_t>(g_syscall(CG_R_REGISTERSHADER, name)); }
 qhandle_t R_RegisterModel(const char* name) { return static_cast<qhandle_t>(g_syscall(CG_R_REGISTERMODEL, name)); }

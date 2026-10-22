@@ -40,6 +40,10 @@ void CM_LoadMap(const char* name);
 void CM_BoxTrace(trace_t* results, const vec3_t start, const vec3_t end, const vec3_t mins, const vec3_t maxs,
                  clipHandle_t model, int brushmask);
 int CM_PointContents(const vec3_t point, clipHandle_t model);
+clipHandle_t CM_InlineModel(int index);
+void CM_TransformedBoxTrace(trace_t* results, const vec3_t start, const vec3_t end, const vec3_t mins,
+                            const vec3_t maxs, clipHandle_t model, int brushmask, const vec3_t origin,
+                            const vec3_t angles);
 
 void R_LoadWorldMap(const char* name);
 qhandle_t R_RegisterShader(const char* name);

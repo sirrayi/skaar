@@ -26,6 +26,16 @@ LOG="$LOGS/session-$STAMP.log"
 : > "$LOG"
 ln -sf "session-$STAMP.log" "$LOGS/latest.log"
 
+# Agent/automated runs (own SKAAR_DEV_HOME) must stay out of the human's way:
+# no focus stealing (SDL won't force the app to the foreground on macOS), no
+# mouse capture, and no network sockets (the local server runs over loopback,
+# so parallel runs can't collide on ports)
+AGENT_ARGS=
+if [ -n "${SKAAR_DEV_HOME:-}" ]; then
+    export SDL_MAC_BACKGROUND_APP=1
+    AGENT_ARGS="+set in_mouse 0 +set net_enabled 0"
+fi
+
 MAPARGS=
 case " $* " in
     *" +map "*|*" +devmap "*) ;;
@@ -41,18 +51,13 @@ case " $* " in
 esac
 
 # shellcheck disable=SC2046,SC2086
-set -- $(dev_engine_args "$CONFIG") \
+set -- $(dev_engine_args "$CONFIG") $AGENT_ARGS \
     +set developer 1 +set logfile 2 +set com_hunkMegs 256 \
     +set com_pipefile "$PIPE_NAME" +set dev_logpath "$LOG" \
     "$@" $MAPARGS
 
 printf '%s[%s] launching %s build: %s%s\n' "$C_DIM" "$(now)" "$CONFIG" "$*" "$C_OFF" | tee -a "$LOG"
 
-# Agent/automated runs (own SKAAR_DEV_HOME) must not steal focus from the
-# human: SDL then doesn't force the app to the foreground on macOS
-if [ -n "${SKAAR_DEV_HOME:-}" ]; then
-    export SDL_MAC_BACKGROUND_APP=1
-fi
 
 if [ "$CONFIG" = safe ]; then
     # keep running after UBSan reports; ASan still stops on the first memory error

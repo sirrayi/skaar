@@ -63,6 +63,11 @@ extern Cvars cvars;
 
 // spawn.cpp
 void SpawnEntitiesFromString();
+gentity_t* Spawn();               // a free non-client entity (Com_Error if the level is full)
+void FreeEntity(gentity_t* ent);  // unlink and release
+
+// clients.cpp (triggers)
+void TouchTriggers(gentity_t& ent, gclient_t& client);
 
 // clients.cpp
 const char* ClientConnect(int clientNum, bool firstTime, bool isBot);
