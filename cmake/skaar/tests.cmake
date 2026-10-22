@@ -10,7 +10,8 @@ add_executable(skaar_tests ${SKAAR_TEST_SOURCES}
     ${SKAAR_GAME_DIR}/shared/scenario.cpp
     ${SKAAR_GAME_DIR}/shared/runlog.cpp
     ${SKAAR_GAME_DIR}/shared/insights.cpp
-    ${SKAAR_GAME_DIR}/shared/trainer_sim.cpp)
+    ${SKAAR_GAME_DIR}/shared/trainer_sim.cpp
+    ${SKAAR_GAME_DIR}/shared/weapons.cpp)
 target_include_directories(skaar_tests PRIVATE ${SOURCE_DIR} ${SKAAR_GAME_DIR} ${NLOHMANN_JSON_DIR})
 target_compile_definitions(skaar_tests PRIVATE SKAAR_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 skaar_strict_target(skaar_tests)

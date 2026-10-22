@@ -1,0 +1,2 @@
+{ "name": "Rocket", "slot": 5, "type": "projectile", "damage": 100, "splashDamage": 100, "splashRadius": 120,
+  "speed": 900, "refireMs": 800, "ammo": { "start": 10, "max": 200, "pickup": 5 } }

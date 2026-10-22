@@ -1,0 +1,2 @@
+{ "name": "Lightning", "slot": 6, "type": "beam", "damage": 8, "range": 768, "refireMs": 50,
+  "ammo": { "start": 100, "max": 200, "pickup": 60 } }

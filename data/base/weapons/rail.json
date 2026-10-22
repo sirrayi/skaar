@@ -1,0 +1,3 @@
+// Format: docs/weapons.md. Values left out keep the built-in defaults.
+{ "name": "Rail", "slot": 7, "type": "hitscan", "damage": 100, "pierce": 4, "refireMs": 1500,
+  "ammo": { "start": 10, "max": 200, "pickup": 10 } }

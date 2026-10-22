@@ -1,0 +1,2 @@
+{ "name": "Shotgun", "slot": 3, "type": "pellets", "damage": 10, "pellets": 11, "spread": 700, "refireMs": 1000,
+  "ammo": { "start": 10, "max": 200, "pickup": 10 } }
