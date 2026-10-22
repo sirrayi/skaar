@@ -32,15 +32,15 @@ void DrawAim(float top) {
     float y = top;
     float v = 0;
 
-    if (NumberRow(y, "Sensitivity", sens, 0.001f, 100, "%.3f", v, "IN-GAME VALUE")) {
+    if (NumberRow(y, "Sensitivity", sens, 0.001f, 100, "%.3f", v)) {
         trap::CvarSet("sensitivity", skaar::Va("%g", v));
     }
     y += kRowStep;
-    if (NumberRow(y, "Mouse DPI", dpi, 50, 64000, "%.0f", v, "FROM YOUR MOUSE SOFTWARE")) {
+    if (NumberRow(y, "Mouse DPI", dpi, 50, 64000, "%.0f", v)) {
         trap::CvarSet("sk_dpi", skaar::Va("%g", v));
     }
     y += kRowStep;
-    if (NumberRow(y, "cm / 360°", cm, 1, 500, "%.2f", v, "MOUSE TRAVEL FOR ONE FULL TURN")) {
+    if (NumberRow(y, "cm / 360°", cm, 1, 500, "%.2f", v)) {
         // sensitivity giving v cm per 360 at this dpi
         trap::CvarSet("sensitivity", skaar::Va("%.4f", 360.0f * kInchCm / (v * dpi * yaw)));
     }
@@ -53,7 +53,7 @@ void DrawAim(float top) {
     if (trap::CvarString("sk_convertYaw").empty()) {
         trap::CvarSet("sk_convertYaw", "0.022");
     }
-    ChoiceRow(y, "Convert from", "sk_convertYaw", yaws, "THE OTHER GAME'S YAW, DEGREES PER COUNT");
+    ChoiceRow(y, "Convert from", "sk_convertYaw", yaws, "THE OTHER GAME'S YAW");
     y += kRowStep;
     const float otherYaw = std::atof(trap::CvarString("sk_convertYaw").c_str());
     const float otherSens = trap::CvarValue("sk_convertSens");
@@ -61,7 +61,7 @@ void DrawAim(float top) {
     if (NumberRow(y, "Their sensitivity", otherSens, 0.0001f, 1000, "%.3f", v,
                   otherSens > 0 ? skaar::Va("= %.3f HERE  ·  %.2f CM/360", converted,
                                             CmPer360(converted, yaw, dpi))
-                                : "TYPE IT, THEN APPLY")) {
+                                : "")) {
         trap::CvarSet("sk_convertSens", skaar::Va("%g", v));
     }
     y += kRowStep;
@@ -72,11 +72,10 @@ void DrawAim(float top) {
     }
     y += kRowStep + 30;
 
-    SliderRow(y, "Field of view", "cg_fov", 60, 130, 1, "%.0f°", "HORIZONTAL, AT YOUR WINDOW'S ASPECT");
+    SliderRow(y, "Field of view", "cg_fov", 60, 130, 1, "%.0f°", "HORIZONTAL");
     y += kRowStep + 40;
 
-    Label(m, y, "RAW INPUT IS ON AND MOUSE ACCELERATION IS OFF. USE SENS_TEST IN THE CONSOLE TO CHECK A 360.",
-          theme::kCreamFaint);
+    Label(m, y, "RAW INPUT, NO ACCELERATION   ·   CHECK A 360 WITH SENS_TEST", theme::kCreamFaint);
     (void)f;
 }
 
@@ -127,9 +126,9 @@ void DrawVideo(float top) {
         trap::CvarSet("r_mode", trap::CvarValue("r_fullscreen") != 0 ? "-2" : "-1");
     }
     y += kRowStep;
-    ToggleRow(y, "Retina resolution", "r_allowHighDPI", "SHARP TEXT ON HIDPI SCREENS  ·  NEEDS APPLY");
+    ToggleRow(y, "Retina resolution", "r_allowHighDPI", "NEEDS APPLY");
     y += kRowStep;
-    ToggleRow(y, "Vertical sync", "r_swapInterval", "OFF FOR THE LOWEST INPUT DELAY  ·  NEEDS APPLY");
+    ToggleRow(y, "Vertical sync", "r_swapInterval", "NEEDS APPLY");
     y += kRowStep;
     ChoiceRow(y, "Frame rate cap", "com_maxfps",
               {{"0", "Uncapped"}, {"144", "144"}, {"240", "240"}, {"360", "360"}, {"500", "500"}, {"1000", "1000"}});

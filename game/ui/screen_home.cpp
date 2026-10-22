@@ -137,53 +137,36 @@ void DrawConnect(bool overlay) {
         return;
     }
     const kit::Fonts& f = kit::GetFonts();
-    const float m = theme::kMargin, w = kit::Width();
+    const float m = theme::kMargin, h = kit::Height();
 
     uiClientState_t cs;
     trap::GetClientState(&cs);
+    kit::Background(false);
+    kit::Image(m - 10, 160, 120, 120, ui.mark, theme::kCream);
 
-    kit::Background(true);
-    Label(m, 84, "LOADING", theme::kCreamSoft);
-    Label(w - m, 84, ui.version, theme::kCreamFaint, Align::kRight);
-    kit::HLine(m, 120, w - 2 * m, theme::kHairline);
-    kit::Image(m - 12, 180, 160, 160, ui.mark, theme::kCream);
-
-    std::string map = Info_ValueForKey(trap::GetConfigString(CS_SERVERINFO).c_str(), "mapname");
+    // the scenario being loaded if it's for this map, else the map
+    const std::string map = Info_ValueForKey(trap::GetConfigString(CS_SERVERINFO).c_str(), "mapname");
     std::string title = map.empty() ? cs.servername : map;
-    // name the scenario being loaded, if it's for this map
-    std::string scenario;
+    std::string line;
     if (const skaar::Scenario* s = data.FindScenario(trap::CvarString("sk_scenario"))) {
         if (map.empty() || s->map == map) {
             title = s->name;
-            scenario = s->description;
+            line = s->description;
         }
     }
-    f.display.Draw(m - 4, 470, type::kTitle, kit::Upper(title), theme::kCream, theme::kTrackStatement);
-
-    const char* status = "";
-    switch (cs.connState) {
-        case CA_CONNECTING:
-        case CA_CHALLENGING:
-            status = "CONNECTING";
-            break;
-        case CA_CONNECTED:
-            status = "AWAITING GAMESTATE";
-            break;
-        case CA_LOADING:
-            status = "LOADING MAP";
-            break;
-        case CA_PRIMED:
-            status = "AWAITING FIRST SNAPSHOT";
-            break;
-        default:
-            break;
+    f.display.Draw(m - 4, h / 2 + 20, type::kTitle, kit::Upper(title), theme::kCream, theme::kTrackStatement);
+    if (!line.empty()) {
+        f.text.Draw(m, h / 2 + 72, type::kBody, line, theme::kCreamSoft);
     }
-    Label(m, 528, std::string(status) + "   ·   " + kit::Upper(map.empty() ? cs.servername : map), theme::kCreamSoft);
-    if (!scenario.empty()) {
-        f.text.Draw(m, 590, type::kBody, scenario, theme::kCreamSoft);
-    }
+    // a thin bar that fills through the connection states
+    const float progress = cs.connState >= CA_PRIMED    ? 0.9f
+                           : cs.connState >= CA_LOADING ? 0.6f
+                           : cs.connState >= CA_CONNECTED ? 0.3f
+                                                          : 0.1f;
+    kit::Fill(m, h - 120, 420, 2, theme::kHairlineStrong);
+    kit::Fill(m, h - 120, 420 * progress, 2, kEmber);
     if (cs.messageString[0]) {
-        Label(m, 640, cs.messageString, kEmber);
+        Label(m, h - 80, cs.messageString, kEmber);
     }
 }
 
