@@ -8,6 +8,7 @@
 #include "../shared/reticle.h"
 #include "local.h"
 #include "trainer.h"
+#include "weapons.h"
 
 namespace cg {
 namespace {
@@ -73,10 +74,13 @@ void DrawHud() {
         if (cvars.drawCrosshair.integer) {
             DrawCrosshair();
         }
-        if (cvars.drawSpeed.integer) {
-            DrawSpeed();
+        // with a weapon loadout the arena HUD owns the bottom of the screen
+        if (!weapons::HudActive()) {
+            if (cvars.drawSpeed.integer) {
+                DrawSpeed();
+            }
+            DrawModeLine();
         }
-        DrawModeLine();
     }
     DrawCenterPrint();
 }
