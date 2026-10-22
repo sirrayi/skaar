@@ -54,3 +54,17 @@ Each item gets its own `docs/plan-*.md` section or file with claims before codin
 
 ## Out of scope (Phase 3)
 Multiplayer and netcode, tac weapons and movement, surf, bots that fight back, leaderboards, a map editor.
+
+## Claims (parallel sessions)
+- **skaar-07**: A (hit registration tests at any input rate and through spikes, edge hits, replay reproduction from
+  saved records, score/accuracy/TTK formulas documented and tested, arena stats); C (in-game pass over the run
+  summary, replay, insights, settings, arena HUD, loading; lobby pick of vq3/cpm per mode; sensitivity converter
+  checked against published formulas); D (bad-input UX: malformed scenario/weapon/benchmark JSON shown in the UI,
+  corrupt history lines skipped and reported; unit tests for game/shared modules I own); E (first-run flow,
+  scenario packs). Files: game/ui/*, game/cgame/trainer*, game/cgame/weapons*, game/sgame/mode*/weapons_fire/items/
+  dummies, game/shared/{scenario,runlog,insights,trainer_sim,charts,weapons,arena,arenalog}.*, tests/test_*.cpp
+  (except movement), data/base/{scenarios,benchmarks,weapons}.
+- **skaar-47**: D config versioning (sk_cfgVersion + migrations), CI workflow, soak test, performance budget,
+  release-build dev noise; E signing / notarized release and versioning.
+- Note: P7 tac (rifle, hand cannon, tac scenarios, tacrange) was finished before this plan was read. It stays as
+  is, untouched in Phase 2, pending the human's call.
