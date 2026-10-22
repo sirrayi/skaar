@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "mode_local.h"
+#include "shared/arenalog.h"
 #include "shared/move_pmove.h"
 
 namespace sg::mode {
@@ -104,6 +105,36 @@ void Decay() {
             cl.ps.externalEventParm = 0;
         }
     }
+}
+
+// One stats/arena.jsonl line for a client's session, if they fired at all
+void WriteSession(int clientNum) {
+    ClientState& cs = clients[clientNum];
+    if (!cs.inSession) {
+        return;
+    }
+    skaar::ArenaSession s;
+    qtime_t t{};
+    trap::RealTime(&t);
+    s.when = {t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec};
+    s.map = level.mapname;
+    s.ruleset = cvars.movement.string[0] ? cvars.movement.string : "vq3";
+    s.seconds = (level.time - cs.sessionStart) / 1000.0f;
+    s.damageDealt = cs.damageDealt;
+    s.damageTaken = cs.damageTaken;
+    s.kills = cs.kills;
+    s.deaths = cs.deaths;
+    int shots = 0;
+    for (const skaar::WeaponDef& w : skaar::Weapons()) {
+        if (cs.shots[w.slot]) {
+            s.weapons[w.id] = {cs.shots[w.slot], cs.hits[w.slot]};
+            shots += cs.shots[w.slot];
+        }
+    }
+    if (shots > 0 && !trap::FileWrite(skaar::kArenaHistoryPath, skaar::ArenaSessionToJsonLine(s) + "\n", true)) {
+        Com_Printf(S_COLOR_YELLOW "WARNING: could not append %s\n", skaar::kArenaHistoryPath);
+    }
+    cs = ClientState{};
 }
 
 }  // namespace
@@ -234,7 +265,11 @@ void Init() {
     LoadWeapons();
 }
 
-void Shutdown() {}
+void Shutdown() {
+    for (int c = 0; c < MAX_CLIENTS; c++) {
+        WriteSession(c);
+    }
+}
 
 void RunFrame(int /*levelTime*/) {
     for (vmCvar_t* c : {&mcv.knockback, &mcv.infiniteAmmo, &mcv.loadout}) {
@@ -265,7 +300,12 @@ void ClientSpawn(int clientNum, playerState_t& ps) {
             ps.weapon = rail->slot;
         }
     }
-    clients[clientNum].lastDecay = level.time;
+    ClientState& cs = clients[clientNum];
+    cs.lastDecay = level.time;
+    if (arenaMap && !cs.inSession) {
+        cs.inSession = true;
+        cs.sessionStart = level.time;
+    }
 }
 
 void ClientThink(int clientNum, const usercmd_t& /*cmd*/, playerState_t& ps, int oldEventSequence) {

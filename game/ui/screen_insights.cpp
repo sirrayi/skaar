@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "../shared/trainer_sim.h"
+#include "../shared/weapons.h"
 #include "local.h"
 
 namespace ui {
@@ -615,6 +616,87 @@ void DrawRun(float top) {
     }
 }
 
+// ---- arena ------------------------------------------------------------------------------
+
+void DrawArena(float top) {
+    const kit::Fonts& f = kit::GetFonts();
+    const float m = theme::kMargin, w = kit::Width() - 2 * m;
+    const auto& sessions = data.arena;
+    if (sessions.empty()) {
+        f.display.Draw(m - 4, top + 90, type::kTitle, "NO ARENA SESSIONS YET.", theme::kCream, theme::kTrackStatement);
+        Paragraph(m, top + 120, 760,
+                  "Play the arena from the main menu. Each session's accuracy per weapon, damage and frags land here "
+                  "when you leave the map.",
+                  type::kBody, theme::kCreamSoft);
+        return;
+    }
+
+    // totals and the latest session
+    const skaar::ArenaSession& last = sessions.back();
+    float seconds = 0;
+    int kills = 0, deaths = 0;
+    for (const auto& s : sessions) {
+        seconds += s.seconds;
+        kills += s.kills;
+        deaths += s.deaths;
+    }
+    const float cellW = w / 5, cellH = 136;
+    CellGrid(m, top, cellW, cellH, 5, 5);
+    auto cell = [&](int i, const char* label, const std::string& value, const std::string& sub) {
+        const Rect r{m + i * cellW, top, cellW, cellH};
+        Cell(r, label, value, theme::kCream, 34);
+        Label(r.x + 22, r.y + 116, sub, theme::kCreamFaint);
+    };
+    cell(0, "SESSIONS", skaar::Va("%zu", sessions.size()), FormatDuration(seconds) + " PLAYED");
+    cell(1, "LAST SESSION", FormatDuration(last.seconds), FormatDate(last.when, data.now));
+    cell(2, "DAMAGE", skaar::Va("%d", last.damageDealt), skaar::Va("TAKEN %d", last.damageTaken));
+    cell(3, "FRAGS", skaar::Va("%d", last.kills), skaar::Va("DEATHS %d", last.deaths));
+    cell(4, "ALL FRAGS", skaar::Va("%d", kills), deaths ? skaar::Va("RATIO %.2f", static_cast<float>(kills) / deaths)
+                                                         : std::string("NO DEATHS"));
+
+    // accuracy per weapon over sessions: one small chart each
+    std::vector<std::string> ids;
+    for (const skaar::WeaponDef& wd : skaar::Weapons()) {
+        for (const auto& s : sessions) {
+            if (s.weapons.count(wd.id)) {
+                ids.push_back(wd.id);
+                break;
+            }
+        }
+    }
+    const float chartTop = top + cellH + 90;
+    Label(m, chartTop - 40, "ACCURACY PER SESSION");
+    const int n = static_cast<int>(ids.size());
+    const float gap = 70, cw = n ? (w - gap * (n - 1)) / n : w;
+    for (int i = 0; i < n; i++) {
+        const skaar::WeaponDef* wd = skaar::WeaponById(ids[i]);
+        std::vector<float> acc;
+        float bestAcc = 0;
+        for (const auto& s : sessions) {
+            auto it = s.weapons.find(ids[i]);
+            if (it != s.weapons.end() && it->second.shots > 0) {
+                acc.push_back(it->second.Accuracy() * 100);
+                bestAcc = std::max(bestAcc, it->second.Accuracy() * 100);
+            }
+        }
+        const float x = m + i * (cw + gap);
+        f.text.Draw(x, chartTop, 26, wd ? wd->name : ids[i], theme::kCream);
+        const float latest = acc.empty() ? 0 : acc.back();
+        f.mono.Draw(x + cw, chartTop, 26, skaar::Va("%.0f%%", latest), theme::kCream, 0.01f, Align::kRight);
+        Label(x + cw, chartTop + 28, skaar::Va("BEST %.0f%%", bestAcc), theme::kCreamFaint, Align::kRight);
+        const Rect plot{x + 50, chartTop + 60, cw - 50, 220};
+        if (acc.size() >= 2) {
+            float lo, hi, step;
+            const auto [mn, mx] = std::minmax_element(acc.begin(), acc.end());
+            chart::NiceRange(std::max(0.0f, *mn - 5), std::min(100.0f, *mx + 5), 3, lo, hi, step);
+            chart::YAxis(plot, lo, hi, step, "%.0f");
+            chart::Curve(plot, acc, lo, hi, theme::kCreamSoft, 1.5f, theme::kCream.Alpha(0.035f));
+        } else {
+            f.text.Draw(x, plot.y + 40, 20, "Needs two sessions.", theme::kCreamFaint);
+        }
+    }
+}
+
 // ---- benchmarks ------------------------------------------------------------------------
 
 void DrawBenchmarks(float top) {
@@ -764,6 +846,7 @@ void DrawInsights() {
     std::vector<T> tabs = {{"Overview", InsightsTab::kOverview},
                            {"Scenarios", InsightsTab::kScenarios},
                            {"Benchmarks", InsightsTab::kBenchmarks}};
+    tabs.push_back({"Arena", InsightsTab::kArena});
     if (!ui.selectedRun.empty()) {
         tabs.push_back({"Run", InsightsTab::kRun});
     }
@@ -789,6 +872,9 @@ void DrawInsights() {
             break;
         case InsightsTab::kBenchmarks:
             DrawBenchmarks(top);
+            break;
+        case InsightsTab::kArena:
+            DrawArena(top);
             break;
     }
     // Left/Right nobody used: next/previous tab

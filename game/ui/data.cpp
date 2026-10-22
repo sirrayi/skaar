@@ -99,6 +99,10 @@ void LoadData() {
     if (trap::FileRead(skaar::kHistoryPath, history)) {
         d.history = skaar::ParseHistory(history);
     }
+    std::string arena;
+    if (trap::FileRead(skaar::kArenaHistoryPath, arena)) {
+        d.arena = skaar::ParseArenaHistory(arena);
+    }
     d.perScenario = skaar::insights::PerScenario(d.history);
     d.overview = skaar::insights::Summarize(d.history, d.now);
 

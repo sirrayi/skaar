@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "../shared/arenalog.h"
 #include "../shared/charts.h"
 #include "../shared/draw2d.h"
 #include "../shared/insights.h"
@@ -46,7 +47,7 @@ constexpr float kLabel = 15;      // mono, uppercase: labels, eyebrows, hints
 }  // namespace type
 
 enum class Screen { kNone, kHome, kPlay, kInsights, kSettings, kInGame, kEditor };
-enum class InsightsTab { kOverview, kScenarios, kRun, kBenchmarks };
+enum class InsightsTab { kOverview, kScenarios, kRun, kBenchmarks, kArena };
 enum class SettingsTab { kAim, kCrosshair, kControls, kVideo, kAudio };
 
 // Input gathered from key/mouse events between frames
@@ -67,6 +68,7 @@ struct Data {
     std::vector<std::pair<std::string, std::string>> scenarioErrors;  // id, error
     std::vector<skaar::Benchmark> benchmarks;
     std::vector<skaar::RunSummary> history;
+    std::vector<skaar::ArenaSession> arena;  // stats/arena.jsonl
     std::map<std::string, skaar::insights::ScenarioStats> perScenario;
     skaar::insights::Overview overview;
     std::vector<skaar::insights::BenchmarkProgress> progress;

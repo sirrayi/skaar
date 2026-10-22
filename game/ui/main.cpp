@@ -282,10 +282,11 @@ bool ConsoleCommand() {
     } else if (what == "edit" && trap::Argc() > 2) {
         LoadData();
         EditScenario(trap::Argv(2));
-    } else if (what == "insights" || what == "benchmarks" || what == "scenarios") {
+    } else if (what == "insights" || what == "benchmarks" || what == "scenarios" || what == "arena") {
         Open(Screen::kInsights);
         ui.insightsTab = what == "benchmarks"  ? InsightsTab::kBenchmarks
                          : what == "scenarios" ? InsightsTab::kScenarios
+                         : what == "arena"     ? InsightsTab::kArena
                                                : InsightsTab::kOverview;
     } else if (what == "play") {
         Open(Screen::kPlay);

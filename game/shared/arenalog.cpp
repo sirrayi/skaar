@@ -26,7 +26,7 @@ std::string ArenaSessionToJsonLine(const ArenaSession& s) {
     json j = {{"when", s.when.Iso()},
               {"map", s.map},
               {"ruleset", s.ruleset},
-              {"seconds", std::round(s.seconds * 10) / 10},
+              {"seconds", std::round(static_cast<double>(s.seconds) * 10) / 10},
               {"damageDealt", s.damageDealt},
               {"damageTaken", s.damageTaken},
               {"kills", s.kills},

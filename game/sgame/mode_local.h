@@ -52,6 +52,8 @@ struct ClientState {
     int damageTaken = 0;
     int kills = 0;
     int deaths = 0;
+    bool inSession = false;  // spawned on an arena map; written to stats/arena.jsonl at shutdown
+    int sessionStart = 0;
 };
 
 struct Cvars {
