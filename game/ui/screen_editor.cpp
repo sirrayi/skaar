@@ -134,7 +134,7 @@ void DrawEditor() {
     y += kRowStep;
 
     float spread = (t.yaw.max - t.yaw.min) / 2;
-    if (ValueSlider(y, "Spread", spread, 2, 90, 1, "± %.0f°", "LEFT AND RIGHT OF CENTRE")) {
+    if (ValueSlider(y, "Spread", spread, 2, 90, 1, "%.0f°", "EACH SIDE OF CENTRE")) {
         const float centre = (t.yaw.min + t.yaw.max) / 2;
         t.yaw = {centre - spread, centre + spread};
     }
