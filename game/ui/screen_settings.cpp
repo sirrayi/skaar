@@ -80,7 +80,9 @@ void DrawAim(float top) {
 }
 
 void DrawCrosshairPreview(const Rect& r) {
-    kit::Fill(r.x, r.y, r.w, r.h, kit::Rgb(36, 37, 41));
+    // a patch of range: the ground tinted a touch towards the ink, like the range walls
+    kit::Fill(r.x, r.y, r.w, r.h, theme::kStage);
+    kit::Fill(r.x, r.y, r.w, r.h, theme::kCream.Alpha(0.06f));
     kit::HLine(r.x, r.y, r.w, theme::kHairlineStrong);
     kit::HLine(r.x, r.Bottom(), r.w, theme::kHairlineStrong);
     kit::VLine(r.x, r.y, r.h, theme::kHairlineStrong);
@@ -99,7 +101,7 @@ void DrawCrosshairPreview(const Rect& r) {
     unsigned int hex = 0xebe6db;
     std::sscanf(trap::CvarString("cg_crosshairColor").c_str(), "%6x", &hex);
     const Color color = kit::Rgb((hex >> 16) & 255, (hex >> 8) & 255, hex & 255);
-    const Color dark = theme::kStage.Alpha(0.7f);
+    const Color dark = theme::kStage.Alpha(0.7f);  // outline: the ground colour
     const float o = outline ? 1.0f / s : 0;
 
     auto arms = [&](Color c, float g) {
