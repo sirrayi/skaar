@@ -55,6 +55,7 @@ struct Input {
     bool mouseMoved = false;
     bool mouseUsed = false;   // the pointer has moved since the screen opened
     bool click = false;       // mouse1 went down
+    bool mouseDown = false;   // mouse1 is held (slider drags)
     int wheel = 0;            // + up
     std::vector<int> keys;    // key presses (not chars)
     std::string chars;        // typed characters
