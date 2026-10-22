@@ -68,3 +68,6 @@ Multiplayer and netcode, tac weapons and movement, surf, bots that fight back, l
   release-build dev noise; E signing / notarized release and versioning.
 - Note: P7 tac (rifle, hand cannon, tac scenarios, tacrange) was finished before this plan was read. It stays as
   is, untouched in Phase 2, pending the human's call.
+- **skaar-47**: D config versioning (`code/qcommon/cfg_migrate.c`, `docs/config-migrations.md`): done 2026-10-22.
+  D CI workflow (`.github/workflows/skaar.yml`), soak test (`scripts/soak.sh`), performance budget (`docs/feel.md` + dev_overlay),
+  release-build dev noise (`code/qcommon/dev.c`, `code/client/cl_dev.c`); E signing/notarized release, versioning, changelog.

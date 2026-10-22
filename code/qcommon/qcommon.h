@@ -561,6 +561,9 @@ void	Cvar_InfoStringBuffer( int bit, char *buff, int buffsize );
 void Cvar_CheckRange( cvar_t *cv, float minVal, float maxVal, qboolean shouldBeIntegral );
 void Cvar_SetDescription( cvar_t *var, const char *var_description );
 
+// skaar: config versioning (cfg_migrate.c)
+void Com_MigrateConfig( qboolean hadConfig );
+
 void	Cvar_Restart(qboolean unsetVM);
 void	Cvar_Restart_f( void );
 

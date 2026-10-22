@@ -31,6 +31,7 @@ endfunction()
 
 skaar_strict_sources(
     ${SOURCE_DIR}/qcommon/dev.c
+    ${SOURCE_DIR}/qcommon/cfg_migrate.c
     ${SOURCE_DIR}/qcommon/dev_assert.c
     ${SOURCE_DIR}/sys/sys_crash.c
     ${SOURCE_DIR}/client/cl_dev.c

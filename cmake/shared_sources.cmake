@@ -31,6 +31,7 @@ set(COMMON_SOURCES
     ${SOURCE_DIR}/qcommon/vm_x86.c
     ${SOURCE_DIR}/qcommon/dev.c
     ${SOURCE_DIR}/qcommon/dev_assert.c
+    ${SOURCE_DIR}/qcommon/cfg_migrate.c
 )
 
 disable_warnings(

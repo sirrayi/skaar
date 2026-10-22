@@ -2378,9 +2378,16 @@ void Com_ExecuteCfg(void)
 
 	if(!Com_SafeMode())
 	{
+		// skaar: note whether a config exists before running it, so the
+		// migration can tell a fresh install from an old config
+		qboolean hadConfig = FS_ReadFile( Q3CONFIG_CFG, NULL ) > 0;
+
 		// skip the q3config.cfg and autoexec.cfg if "safe" is on the command line
 		Cbuf_ExecuteText(EXEC_NOW, "exec " Q3CONFIG_CFG "\n");
 		Cbuf_Execute();
+		// skaar: upgrade archived values whose defaults changed (cfg_migrate.c);
+		// before autoexec and command line args, which still win
+		Com_MigrateConfig( hadConfig );
 		Cbuf_ExecuteText(EXEC_NOW, "exec autoexec.cfg\n");
 		Cbuf_Execute();
 	}
