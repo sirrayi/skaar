@@ -1,6 +1,10 @@
 # Plan P1–P3 build-out: readable menus, aim trainer v1, stats ("insights")
 
-Status 2026-10-22. P1 (`plan-P1.md`) was only planned. The client still ran the stock Q3 `q3_ui`, which draws Q3 art we
+Status 2026-10-22 evening: built. Menus (99e49613), trainer + recording + replay (in trainer.cpp), insights,
+settings, HiDPI (de4c8165). Open items: summary/replay screens not yet screenshot-verified in game; benchmark
+thresholds uncalibrated; no unit-test target yet (logic was tested with standalone harnesses).
+
+Background: P1 (`plan-P1.md`) was only planned. The client still ran the stock Q3 `q3_ui`, which draws Q3 art we
 don't ship, so the menus were unreadable. This plan does P1, P2 and P3 together, plus an insights section inspired
 by RefleK's (a GPLv3 KovaaK's stats tracker). We take ideas only, no code: overview dashboard, run history, run
 analysis charts, mouse-trajectory view, benchmarks with a "focus next" pick, and run replays.
