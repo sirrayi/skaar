@@ -7,6 +7,7 @@
 #include <cstdarg>
 #include <exception>
 
+#include "../shared/move_ruleset.h"
 #include "local.h"
 
 namespace ui {
@@ -81,6 +82,15 @@ void StartScenario(const std::string& id) {
         return;
     }
     trap::CvarSet("sk_scenario", id.c_str());
+    // movement physics: the server switches when g_movement changes (game/shared/move_ruleset.h)
+    std::string ruleset = s->ruleset;
+    if (skaar::move::FindRuleset(ruleset) < 0 && !trap::FileRead(skaar::Va("rulesets/%s.json", ruleset.c_str()), ruleset)) {
+        Com_Printf(S_COLOR_YELLOW "WARNING: %s: unknown movement ruleset '%s', using vq3\n", id.c_str(), s->ruleset.c_str());
+        ruleset = "vq3";
+    } else {
+        ruleset = s->ruleset;
+    }
+    trap::CvarSet("g_movement", ruleset.c_str());
     const std::string map = Info_ValueForKey(trap::GetConfigString(CS_SERVERINFO).c_str(), "mapname");
     if (InGame() && map == s->map) {
         Exec(skaar::Va("sk_start %s\n", id.c_str()));

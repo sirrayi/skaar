@@ -1,0 +1,14 @@
+{
+  "name": "Air track",
+  "category": "track",
+  "description": "Track a strafing target while you strafe-jump with advanced movement. Keep your speed and your aim.",
+  "duration": 60,
+  "fire": "hold",
+  "player": { "move": true, "ruleset": "cpm" },
+  "targets": {
+    "alive": 1, "radius": 28, "health": 1000,
+    "spawn": { "shape": "cone", "distance": 800, "yaw": [-35, 35], "pitch": [2, 14] },
+    "motion": { "type": "strafe", "speed": [240, 400], "changeEvery": [0.35, 1.1] }
+  },
+  "score": { "perSecondOnTarget": 100 }
+}

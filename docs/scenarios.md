@@ -16,7 +16,10 @@ Aim-trainer scenarios are JSON files. Anyone can add or tune one without touchin
   "duration": 60,                       // seconds, 5..600
   "map": "range",                       // map to play on (default "range")
   "seed": 0,                            // 0 = new layout every run; any other number = same layout every run
-  "player": { "move": false },          // false: frozen in place, view still turns
+  "player": {
+    "move": false,                      // false: frozen in place, view still turns
+    "ruleset": "vq3"                    // movement physics when you can move: vq3 | cpm | any rulesets/<id>.json
+  },
   "fire": "click",                      // click: one shot per press | hold: continuous beam
   "targets": {
     "alive": 3,                         // on screen at once, 1..16

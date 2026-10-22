@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <set>
 
+#include "../shared/move_ruleset.h"
 #include "local.h"
 
 namespace ui {
@@ -44,9 +45,16 @@ void DrawDetail(const skaar::Scenario& s, float x, float top, float w) {
     const auto stats = data.perScenario.find(s.id);
     const bool played = stats != data.perScenario.end();
 
-    Label(x, top + 16, skaar::Va("%s   ·   %s   ·   %s TARGETS", s.category.c_str(), FormatDuration(s.duration).c_str(),
-                                 MotionLabel(s.targets.motion)),
-          theme::kCreamSoft);
+    std::string eyebrow = skaar::Va("%s   ·   %s   ·   %s TARGETS", s.category.c_str(), FormatDuration(s.duration).c_str(),
+                                    MotionLabel(s.targets.motion));
+    if (s.playerMove) {
+        const int r = skaar::move::FindRuleset(s.ruleset);
+        eyebrow += "   ·   YOU MOVE";
+        if (s.ruleset != "vq3") {
+            eyebrow += " (" + (r >= 0 ? skaar::move::RulesetAt(r).label : s.ruleset) + ")";
+        }
+    }
+    Label(x, top + 16, eyebrow, theme::kCreamSoft);
     float titleSize = type::kTitle;
     while (titleSize > 40 && f.display.Measure(titleSize, kit::Upper(s.name), theme::kTrackStatement) > w) {
         titleSize -= 4;
