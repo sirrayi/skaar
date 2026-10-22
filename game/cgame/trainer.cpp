@@ -15,6 +15,7 @@
 #include "../shared/move_ruleset.h"
 #include "../shared/reticle.h"
 #include "../shared/runlog.h"
+#include "../shared/sens.h"
 #include "../shared/scenario.h"
 #include "../shared/trainer_sim.h"
 #include "local.h"
@@ -117,13 +118,7 @@ void UpdateCvars() {
     }
 }
 
-float CmPer360() {
-    const float degPerCount = cv.sensitivity.value * cv.mYaw.value;
-    if (degPerCount <= 0 || cv.dpi.value <= 0) {
-        return 0;
-    }
-    return 360.0f / degPerCount / cv.dpi.value * 2.54f;
-}
+float CmPer360() { return skaar::sens::CmPer360(cv.sensitivity.value, cv.mYaw.value, cv.dpi.value); }
 
 skaar::RunTime Now() {
     qtime_t t{};

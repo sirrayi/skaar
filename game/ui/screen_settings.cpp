@@ -8,18 +8,15 @@
 #include <cstdio>
 
 #include "../shared/reticle.h"
+#include "../shared/sens.h"
 #include "local.h"
 
 namespace ui {
 namespace {
 
 constexpr float kRowStep = 64;
-constexpr float kInchCm = 2.54f;
 
-float CmPer360(float sensitivity, float yaw, float dpi) {
-    const float degPerCount = sensitivity * yaw;
-    return degPerCount > 0 && dpi > 0 ? 360.0f / degPerCount / dpi * kInchCm : 0;
-}
+float CmPer360(float sensitivity, float yaw, float dpi) { return skaar::sens::CmPer360(sensitivity, yaw, dpi); }
 
 void DrawAim(float top) {
     const kit::Fonts& f = kit::GetFonts();
@@ -44,14 +41,14 @@ void DrawAim(float top) {
     y += kRowStep;
     if (NumberRow(y, "cm / 360°", cm, 1, 500, "%.2f", v)) {
         // sensitivity giving v cm per 360 at this dpi
-        trap::CvarSet("sensitivity", skaar::Va("%.4f", 360.0f * kInchCm / (v * dpi * yaw)));
+        trap::CvarSet("sensitivity", skaar::Va("%.4f", skaar::sens::SensitivityFor(v, dpi > 0 ? yaw : 0, dpi)));
     }
     y += kRowStep;
 
     // conversion from another game: same deg/count = same feel
+    // yaw values with community-documented standards (docs/sensitivity.md); no game names in the product
     static const std::vector<std::pair<std::string, std::string>> yaws = {
-        {"0.022", "Yaw 0.022"}, {"0.07", "Yaw 0.07"}, {"0.0066", "Yaw 0.0066"}, {"0.005555", "Yaw 0.005555"},
-        {"0.0225", "Yaw 0.0225"}};
+        {"0.022", "Yaw 0.022"}, {"0.07", "Yaw 0.07"}, {"0.0066", "Yaw 0.0066"}};
     if (trap::CvarString("sk_convertYaw").empty()) {
         trap::CvarSet("sk_convertYaw", "0.022");
     }
@@ -59,7 +56,7 @@ void DrawAim(float top) {
     y += kRowStep;
     const float otherYaw = std::atof(trap::CvarString("sk_convertYaw").c_str());
     const float otherSens = trap::CvarValue("sk_convertSens");
-    const float converted = otherYaw > 0 ? otherSens * otherYaw / yaw : 0;
+    const float converted = otherYaw > 0 ? skaar::sens::Convert(otherSens, otherYaw, yaw) : 0;
     if (NumberRow(y, "Their sensitivity", otherSens, 0.0001f, 1000, "%.3f", v,
                   otherSens > 0 ? skaar::Va("= %.3f HERE  ·  %.2f CM/360", converted,
                                             CmPer360(converted, yaw, dpi))
