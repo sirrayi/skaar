@@ -445,6 +445,125 @@ def ui_sounds():
     save_wav(ui_confirm(), "sound/ui/confirm.wav")
 
 
+# ---- weapons (P6) --------------------------------------------------------------
+
+def fx_textures():
+    # soft radial glow: explosions, muzzle flashes, rocket glow (white, tinted by the shader)
+    size = 128
+    img = Image.new("RGBA", (size, size))
+    for y in range(size):
+        for x in range(size):
+            d = math.hypot((x + 0.5) / size * 2 - 1, (y + 0.5) / size * 2 - 1)
+            a = max(0.0, 1.0 - d) ** 2.2
+            img.putpixel((x, y), (255, 255, 255, int(255 * a)))
+    save_tga(img, "gfx/skaar/fx_glow.tga")
+
+    # beam: bright core, soft falloff across v (rail core, lightning)
+    w, h = 64, 32
+    img = Image.new("RGBA", (w, h))
+    for y in range(h):
+        v = abs((y + 0.5) / h * 2 - 1)
+        a = max(0.0, 1.0 - v) ** 1.6
+        for x in range(w):
+            img.putpixel((x, y), (255, 255, 255, int(255 * a)))
+    save_tga(img, "gfx/skaar/fx_beam.tga")
+
+    # bolt: a jagged bright line for lightning, tiles along u
+    w, h = 256, 32
+    img = Image.new("RGBA", (w, h), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(img)
+    import random
+    rnd = random.Random(7)
+    pts, y = [], h / 2
+    for x in range(0, w + 8, 8):
+        y = max(6, min(h - 6, y + rnd.uniform(-5, 5)))
+        pts.append((x, y))
+    pts[-1] = (pts[-1][0], pts[0][1])  # tiles seamlessly
+    draw.line(pts, fill=(255, 255, 255, 255), width=3)
+    img = img.filter(ImageFilter.GaussianBlur(1.2))
+    save_tga(img, "gfx/skaar/fx_bolt.tga")
+
+    # impact ring
+    size = 128
+    img = Image.new("RGBA", (size, size))
+    for y in range(size):
+        for x in range(size):
+            d = math.hypot((x + 0.5) / size * 2 - 1, (y + 0.5) / size * 2 - 1)
+            a = max(0.0, 1.0 - abs(d - 0.8) / 0.12)
+            img.putpixel((x, y), (255, 255, 255, int(255 * a)))
+    save_tga(img, "gfx/skaar/fx_ring.tga")
+
+
+def dummy_capsule(radius=15.0, bottom=-24.0, top=32.0, rings=8, segments=24):
+    """Pill the size of the player box (30 x 30 x 56), for practice dummies."""
+    verts, normals, sts, tris = [], [], [], []
+    zc0, zc1 = bottom + radius, top - radius
+    rows = []
+    for r in range(rings + 1):  # bottom hemisphere, pole to equator
+        theta = math.pi / 2 * r / rings
+        rows.append((-math.cos(theta), math.sin(theta), zc0))
+    for r in range(rings + 1):  # top hemisphere, equator to pole
+        theta = math.pi / 2 * r / rings
+        rows.append((math.sin(theta), math.cos(theta), zc1))
+    for i, (nz, nr, zc) in enumerate(rows):
+        for sgi in range(segments + 1):
+            phi = 2 * math.pi * sgi / segments
+            n = (nr * math.cos(phi), nr * math.sin(phi), nz)
+            verts.append((radius * n[0], radius * n[1], zc + radius * n[2]))
+            normals.append(n)
+            sts.append((sgi / segments, i / (len(rows) - 1)))
+    row = segments + 1
+    for i in range(len(rows) - 1):
+        for sgi in range(segments):
+            a, b = i * row + sgi, (i + 1) * row + sgi
+            tris.append((a, b, a + 1))
+            tris.append((a + 1, b, b + 1))
+    save_md3("models/skaar/dummy.md3", "capsule", "skaar/dummy", verts, normals, tris, sts)
+
+
+def noise_burst(rate, seconds, decay, lowpass, gain, seed):
+    import random
+    rnd = random.Random(seed)
+    out, prev = [], 0.0
+    for i in range(int(rate * seconds)):
+        x = rnd.uniform(-1, 1)
+        prev += (x - prev) * lowpass  # one-pole low-pass: lower = darker
+        out.append(gain * prev * math.exp(-i / (rate * decay)))
+    return out
+
+
+def weapon_sounds(rate=22050):
+    def mix(*parts):
+        n = max(len(p) for p in parts)
+        return [sum(p[i] for p in parts if i < len(p)) for i in range(n)]
+
+    def tone(freq0, freq1, seconds, decay, gain):
+        out, phase = [], 0.0
+        n = int(rate * seconds)
+        for i in range(n):
+            f = freq0 + (freq1 - freq0) * i / n
+            phase += 2 * math.pi * f / rate
+            out.append(gain * math.sin(phase) * math.exp(-i / (rate * decay)))
+        return out
+
+    save_wav(mix(tone(2400, 600, 0.35, 0.09, 0.45), noise_burst(rate, 0.2, 0.03, 0.6, 0.5, 1)), "sound/weapons/rail.wav")
+    save_wav(mix(noise_burst(rate, 0.45, 0.12, 0.08, 1.4, 2), tone(180, 90, 0.3, 0.1, 0.3)), "sound/weapons/rocket.wav")
+    save_wav(mix(noise_burst(rate, 0.8, 0.18, 0.05, 2.2, 3), tone(90, 40, 0.6, 0.2, 0.5)), "sound/weapons/explode.wav")
+    save_wav(mix(noise_burst(rate, 0.3, 0.06, 0.25, 1.2, 4), tone(140, 80, 0.2, 0.05, 0.4)), "sound/weapons/shotgun.wav")
+    # lightning: a short buzzy tone, played every few refires while firing
+    buzz = [0.25 * math.copysign(1, math.sin(2 * math.pi * 110 * i / rate)) * (0.6 + 0.4 * math.sin(2 * math.pi * 31 * i / rate))
+            for i in range(int(rate * 0.12))]
+    save_wav(buzz, "sound/weapons/lightning.wav")
+    save_wav(tone(660, 990, 0.12, 0.05, 0.35), "sound/items/pickup.wav")
+    save_wav(mix(tone(300, 180, 0.15, 0.05, 0.3), noise_burst(rate, 0.1, 0.03, 0.3, 0.3, 5)), "sound/player/pain.wav")
+
+
+def weapons_assets():
+    fx_textures()
+    dummy_capsule()
+    weapon_sounds()
+
+
 def main():
     for path in (MANROPE, JBMONO):
         if not os.path.exists(path):
@@ -467,6 +586,7 @@ def main():
     save_wav(hit_tick(), "sound/feedback/hit.wav")
     trainer()
     ui_sounds()
+    weapons_assets()
 
 
 if __name__ == "__main__":
