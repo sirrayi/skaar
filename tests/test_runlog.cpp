@@ -75,3 +75,24 @@ TEST("record round trip") {
     CHECK_NEAR(back.samples[0].pitch, -2.25, 1e-3);
     CHECK(!RecordFromJson("{}", back, error) && !error.empty());
 }
+
+#include "shared/arenalog.h"
+
+TEST("arena session round trip") {
+    ArenaSession s;
+    s.when = {2026, 10, 22, 20, 0, 0};
+    s.map = "duel";
+    s.ruleset = "cpm";
+    s.seconds = 312.4f;
+    s.damageDealt = 4200;
+    s.kills = 31;
+    s.weapons["rail"] = {40, 22};
+    s.weapons["rocket"] = {55, 30};
+    const auto back = ParseArenaHistory(ArenaSessionToJsonLine(s) + "\n{bad\n");
+    CHECK(back.size() == 1);
+    if (!back.empty()) {
+        CHECK(back[0].map == "duel" && back[0].ruleset == "cpm" && back[0].kills == 31);
+        CHECK(back[0].weapons.at("rail").hits == 22);
+        CHECK_NEAR(back[0].weapons.at("rocket").Accuracy(), 30.0 / 55, 1e-6);
+    }
+}

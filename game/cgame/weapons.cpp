@@ -14,6 +14,7 @@
 
 #include "../shared/arena.h"
 #include "../shared/draw2d.h"
+#include "../shared/move_pmove.h"
 #include "../shared/weapons.h"
 
 namespace cg::weapons {
@@ -280,6 +281,11 @@ void LoadWeapons() {
         if (trap::FileRead(skaar::Va("weapons/%s.json", id), text) && skaar::ParseWeapon(id, text, w, error)) {
             skaar::AddWeapon(w);
         }
+    }
+    // the server applies the same table (sgame mode.cpp), so prediction and firing agree
+    skaar::move::ClearWeaponRefire();
+    for (const skaar::WeaponDef& w : skaar::Weapons()) {
+        skaar::move::SetWeaponRefire(w.slot, w.refireMs);
     }
 }
 

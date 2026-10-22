@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "mode_local.h"
+#include "shared/move_pmove.h"
 
 namespace sg::mode {
 
@@ -36,6 +37,11 @@ void LoadWeapons() {
         } else {
             Com_Printf(S_COLOR_YELLOW "WARNING: weapons/%s: %s\n", file.c_str(), error.c_str());
         }
+    }
+    // refire times from the definitions; the cgame sets the same so prediction agrees
+    skaar::move::ClearWeaponRefire();
+    for (const skaar::WeaponDef& w : skaar::Weapons()) {
+        skaar::move::SetWeaponRefire(w.slot, w.refireMs);
     }
 }
 
