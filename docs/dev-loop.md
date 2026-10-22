@@ -93,3 +93,10 @@ All verified to exist in this ioq3 version:
 ## Ubuntu
 The same scripts work. `dev.sh` uses gdb when lldb isn't available (`gdb -batch -ex run -ex "thread apply all bt full" -ex continue`).
 Install `fswatch` in addition to the DEV_ENV list: `sudo apt install fswatch`.
+
+## Soak test
+`SOAK_MINUTES=120 ./scripts/soak.sh [safe|fast]` plays a long scripted session in its own home (`.home-soak`, background window,
+no mouse, no network): every trainer scenario, the movement map on both rulesets with the jump pad, the test room and the
+arena (firing, weapon switching). Every few seconds it samples resident memory, fps and frame p99 into `logs/soak-*.csv`.
+It fails on a crash or early exit, any ERROR / ASSERT / sanitizer line, or memory that keeps growing
+(> 25% and > 64 MB from the first to the last tenth). Run it before releases; it isn't part of `smoke.sh`.
