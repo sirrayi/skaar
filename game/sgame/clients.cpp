@@ -140,7 +140,10 @@ void ClientCommand(int clientNum) {
         // sent by the aim trainer for scenarios where the player doesn't move
         client.frozen = atoi(trap::Argv(1).c_str()) != 0;
         Com_DPrintf("sgame: client %d %s\n", clientNum, client.frozen ? "frozen" : "unfrozen");
-    } else if (!Q_stricmp(cmd.c_str(), "kill") || !Q_stricmp(cmd.c_str(), "respawn")) {
+    } else if (!Q_stricmp(cmd.c_str(), "kill") || !Q_stricmp(cmd.c_str(), "respawn") ||
+               !Q_stricmp(cmd.c_str(), "sk_restart")) {
+        // sk_restart reaches the server only when the cgame trainer didn't handle it
+        // (no scenario loaded): fall back to a respawn
         Spawn(clientNum);
     } else {
         SendPrint(clientNum, skaar::Va("unknown command: %s\n", cmd.c_str()));
