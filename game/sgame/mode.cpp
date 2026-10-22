@@ -297,7 +297,7 @@ bool ClientCommand(int clientNum, const char* cmd) {
                                      cs.damageTaken, cs.kills, cs.deaths);
         for (const skaar::WeaponDef& w : skaar::Weapons()) {
             if (cs.shots[w.slot]) {
-                text += skaar::Va("%-10s %d/%d  %.0f%%\n", w.name.c_str(), cs.hits[w.slot], cs.shots[w.slot],
+                text += skaar::Va("%-10s %d/%d  %.0f pct\n", w.name.c_str(), cs.hits[w.slot], cs.shots[w.slot],
                                   100.0f * cs.hits[w.slot] / cs.shots[w.slot]);
             }
         }

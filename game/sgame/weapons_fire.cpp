@@ -84,17 +84,22 @@ void FireHitscan(gentity_t* player, const skaar::WeaponDef& w, const vec3_t muzz
 }
 
 // Shotgun: Q3's pattern. The client rebuilds the pellets from the seed for impacts.
-void FirePellets(gentity_t* player, const skaar::WeaponDef& w, const vec3_t muzzle, const vec3_t forward,
-                 const vec3_t right, const vec3_t up) {
+void FirePellets(gentity_t* player, const skaar::WeaponDef& w, const vec3_t muzzle, const vec3_t aim) {
     int seed = rand() & 255;
     gentity_t* tent = TempEvent(muzzle, EV_SHOTGUN, seed);
-    VectorScale(forward, 4096, tent->s.origin2);
-    SnapVector(tent->s.origin2);
     tent->s.otherEntityNum = player->s.number;
     tent->s.weapon = w.slot;
     tent->s.angles2[0] = w.spread;
     tent->s.angles2[1] = static_cast<float>(w.pellets);
+    VectorScale(aim, 4096, tent->s.origin2);
+    SnapVector(tent->s.origin2);
 
+    // Q3 ShotgunPattern: the frame comes from the snapped direction in origin2,
+    // so the client rebuilds exactly these pellets from (origin2, seed)
+    vec3_t forward, right, up;
+    VectorNormalize2(tent->s.origin2, forward);
+    PerpendicularVector(right, forward);
+    CrossProduct(forward, right, up);
     bool counted = false;
     for (int i = 0; i < w.pellets; i++) {
         const float r = Q_crandom(&seed) * w.spread * 16;
@@ -213,7 +218,7 @@ void FireWeapon(gentity_t* player, playerState_t& ps) {
             FireHitscan(player, *w, muzzle, forward);
             break;
         case skaar::FireType::kPellets:
-            FirePellets(player, *w, muzzle, forward, right, up);
+            FirePellets(player, *w, muzzle, forward);
             break;
         case skaar::FireType::kBeam:
             FireBeam(player, *w, muzzle, forward);

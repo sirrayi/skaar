@@ -18,6 +18,7 @@
 #include "../shared/scenario.h"
 #include "../shared/trainer_sim.h"
 #include "local.h"
+#include "weapons.h"
 
 namespace cg::trainer {
 namespace {
@@ -674,6 +675,7 @@ void OnCommand(const usercmd_t& cmd, const playerState_t& ps) {
 }
 
 void AddEntities() {
+    weapons::AddLocalEntities();  // arena effects (P6); one per-frame scene hook for both
     if (st.phase == Phase::kReplay) {
         AdvanceReplay();
     }

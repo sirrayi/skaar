@@ -17,6 +17,10 @@ void Shutdown();
 // interpolated (or extrapolated along the trajectory) for this frame.
 void AddPacketEntity(const CEntity& cent);
 
+// Once per frame between R_ClearScene and R_RenderScene (called from
+// trainer::AddEntities): effects, the local lightning beam.
+void AddLocalEntities();
+
 // An entity event (es.event, or a temp ET_EVENTS entity), once each.
 void EntityEvent(const entityState_t& es, int event);
 
