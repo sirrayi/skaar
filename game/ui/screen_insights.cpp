@@ -305,26 +305,46 @@ void DrawScenarios(float top) {
 
 // ---- run -----------------------------------------------------------------------------
 
-void DrawTtkPanel(const Rect& r, const skaar::RunRecord& rec, bool hold) {
+// Rolling mean TTK over the last 8 kills, one value per kill
+std::vector<float> RollingTtk(const skaar::RunRecord& rec) {
+    std::vector<float> rolling;
+    for (size_t i = 0; i < rec.kills.size(); i++) {
+        const size_t a = i >= 7 ? i - 7 : 0;
+        float sum = 0;
+        for (size_t j = a; j <= i; j++) {
+            sum += rec.kills[j].ttk;
+        }
+        rolling.push_back(sum / (i - a + 1));
+    }
+    return rolling;
+}
+
+// Share of 20 Hz aim samples on target, in 2 s windows
+std::vector<float> OnTargetCurve(const skaar::RunRecord& rec, float duration) {
+    const int buckets = std::max(2, static_cast<int>(duration / 2));
+    std::vector<float> on(buckets, 0), all(buckets, 0), pct;
+    for (const skaar::ShotEvent& s : rec.shots) {
+        const int b = std::clamp(static_cast<int>(s.t / duration * buckets), 0, buckets - 1);
+        all[b]++;
+        on[b] += s.hit ? 1 : 0;
+    }
+    for (int b = 0; b < buckets; b++) {
+        pct.push_back(all[b] > 0 ? on[b] / all[b] * 100 : 0);
+    }
+    return pct;
+}
+
+void DrawTtkPanel(const Rect& r, const skaar::RunRecord& rec, bool hold, const skaar::RunRecord* other) {
     Label(r.x, r.y, hold ? "ON TARGET OVER THE RUN" : "TIME TO KILL OVER THE RUN");
     const Rect plot{r.x + 60, r.y + 40, r.w - 60, r.h - 80};
     const float duration = std::max(1.0f, rec.summary.duration);
 
     if (hold) {
-        // share of 20 Hz aim samples on target, in 2 s windows
-        const int buckets = std::max(2, static_cast<int>(duration / 2));
-        std::vector<float> on(buckets, 0), all(buckets, 0);
-        for (const skaar::ShotEvent& s : rec.shots) {
-            const int b = std::clamp(static_cast<int>(s.t / duration * buckets), 0, buckets - 1);
-            all[b]++;
-            on[b] += s.hit ? 1 : 0;
-        }
-        std::vector<float> pct;
-        for (int b = 0; b < buckets; b++) {
-            pct.push_back(all[b] > 0 ? on[b] / all[b] * 100 : 0);
-        }
         chart::YAxis(plot, 0, 100, 25, "%.0f");
-        chart::Curve(plot, pct, 0, 100, theme::kCream, 1.5f, theme::kCream.Alpha(0.05f));
+        if (other) {
+            chart::Curve(plot, OnTargetCurve(*other, duration), 0, 100, theme::kCreamFaint, 1.0f);
+        }
+        chart::Curve(plot, OnTargetCurve(rec, duration), 0, 100, theme::kCream, 1.5f, theme::kCream.Alpha(0.05f));
     } else {
         if (rec.kills.empty()) {
             kit::GetFonts().text.Draw(plot.x, plot.y + 40, 20, "No kills in this run.", theme::kCreamFaint);
@@ -345,16 +365,15 @@ void DrawTtkPanel(const Rect& r, const skaar::RunRecord& rec, bool hold) {
             const float py = plot.Bottom() - std::min(k.ttk, hi) / hi * plot.h;
             chart::Dot(px, py, 5, kDot);
         }
-        // rolling mean over 8 kills, plotted at even steps
-        std::vector<float> rolling;
-        for (size_t i = 0; i < ttks.size(); i++) {
-            const size_t a = i >= 7 ? i - 7 : 0;
-            float sum = 0;
-            for (size_t j = a; j <= i; j++) {
-                sum += ttks[j];
-            }
-            rolling.push_back(sum / (i - a + 1));
+        if (other && !other->kills.empty()) {
+            // the comparison run's rolling mean, faint, on the same scale and time axis
+            const float d = std::max(1.0f, other->summary.duration);
+            const float ox0 = plot.x + other->kills.front().t / d * plot.w;
+            const float ox1 = plot.x + other->kills.back().t / d * plot.w;
+            chart::Curve({ox0, plot.y, std::max(1.0f, ox1 - ox0), plot.h}, RollingTtk(*other), lo, hi,
+                         theme::kCreamFaint, 1.0f);
         }
+        const std::vector<float> rolling = RollingTtk(rec);
         const float x0 = plot.x + rec.kills.front().t / duration * plot.w;
         const float x1 = plot.x + rec.kills.back().t / duration * plot.w;
         chart::Curve({x0, plot.y, std::max(1.0f, x1 - x0), plot.h}, rolling, lo, hi, theme::kCream, 2.0f);
@@ -370,7 +389,7 @@ void DrawTtkPanel(const Rect& r, const skaar::RunRecord& rec, bool hold) {
             kit::GetFonts().text.Draw(r.x, r.Bottom() + 4, 20, text, theme::kCreamSoft);
         }
     }
-    Label(plot.x, plot.Bottom() + 24, "0:00", theme::kCreamFaint);
+    Label(plot.x, plot.Bottom() + 24, other ? "0:00   ·   FAINT = COMPARED RUN" : "0:00", theme::kCreamFaint);
     Label(plot.Right(), plot.Bottom() + 24, FormatDuration(duration), theme::kCreamFaint, Align::kRight);
 }
 
@@ -480,6 +499,37 @@ void DrawPathPanel(const Rect& r, const skaar::RunRecord& rec) {
     }
 }
 
+// The run a run is compared with: the pinned one (same scenario), else the
+// scenario's best. Empty if there's nothing else to compare with.
+std::string CompareFile(const RunSummary& s, const std::string& self, std::string* why) {
+    if (!ui.pinnedRun.empty() && ui.pinnedRun != self) {
+        const int i = IndexOfFile(ui.pinnedRun);
+        if (i >= 0 && data.history[i].scenario == s.scenario) {
+            *why = "PINNED, " + FormatDate(data.history[i].when, data.now);
+            return ui.pinnedRun;
+        }
+    }
+    const auto it = data.perScenario.find(s.scenario);
+    if (it != data.perScenario.end() && it->second.bestRun >= 0) {
+        const RunSummary& best = data.history[it->second.bestRun];
+        if (best.file != self && !best.file.empty()) {
+            *why = "BEST, " + FormatDate(best.when, data.now);
+            return best.file;
+        }
+    }
+    return "";
+}
+
+// "+2.1" style delta line under a cell value; better = brighter
+void Delta(const Rect& r, float delta, const char* format, bool higherIsBetter) {
+    if (std::fabs(delta) < 1e-6f) {
+        Label(r.x + 22, r.y + 98, "SAME", theme::kCreamFaint);
+        return;
+    }
+    const bool better = higherIsBetter ? delta > 0 : delta < 0;
+    Label(r.x + 22, r.y + 98, skaar::Va(format, delta), better ? theme::kCreamSoft : theme::kCreamFaint);
+}
+
 void DrawRun(float top) {
     const kit::Fonts& f = kit::GetFonts();
     const float m = theme::kMargin, w = kit::Width() - 2 * m, h = kit::Height();
@@ -488,9 +538,16 @@ void DrawRun(float top) {
         f.text.Draw(m, top + 60, type::kBody, ui.runError.empty() ? "No run selected." : ui.runError, theme::kCreamSoft);
         return;
     }
-    const RunSummary& s = rec->summary;
+    // copy: loading the comparison may evict this record from the cache
+    const skaar::RunRecord run = *rec;
+    const RunSummary& s = run.summary;
     const bool hold = IsHold(s.scenario);
     const int index = IndexOfFile(ui.selectedRun);
+
+    std::string compareWhy;
+    const std::string compareFile = CompareFile(s, ui.selectedRun, &compareWhy);
+    const skaar::RunRecord* other = compareFile.empty() ? nullptr : LoadRunRecord(compareFile);
+    const RunSummary* o = other ? &other->summary : nullptr;
 
     Label(m, top + 10, "RUN   ·   " + FormatDate(s.when, data.now) + "   ·   " + ScenarioName(s) + "   ·   " +
                            FormatDuration(s.duration));
@@ -501,33 +558,53 @@ void DrawRun(float top) {
         f.text.Draw(m, top + 150, 22, Verdict(index), theme::kCreamSoft);
     }
 
-    // numbers
-    const float cx = m + w * 0.38f, cw = w - (cx - m), cellW = cw / 6, cellH = 110;
+    // numbers, with the difference to the comparison run under each
+    const float cx = m + w * 0.38f, cw = w - (cx - m), cellW = cw / 6, cellH = 124;
+    auto cell = [&](int i) { return Rect{cx + i * cellW, top + 30, cellW, cellH}; };
     CellGrid(cx, top + 30, cellW, cellH, 6, 6);
-    Cell({cx, top + 30, cellW, cellH}, hold ? "ON TARGET" : "ACCURACY", Pct(s.accuracy));
-    Cell({cx + cellW, top + 30, cellW, cellH}, "KILLS", skaar::Va("%d", s.kills));
-    Cell({cx + 2 * cellW, top + 30, cellW, cellH}, "MEAN TTK", s.ttk > 0 ? skaar::Va("%.0f MS", s.ttk) : "—");
-    Cell({cx + 3 * cellW, top + 30, cellW, cellH}, hold ? "TIME ON" : "HITS",
-         hold ? skaar::Va("%.1f S", s.onTarget) : skaar::Va("%d/%d", s.hits, s.shots));
-    Cell({cx + 4 * cellW, top + 30, cellW, cellH}, "CM / 360", s.sensCm360 > 0 ? skaar::Va("%.1f", s.sensCm360) : "—");
-    Cell({cx + 5 * cellW, top + 30, cellW, cellH}, "FOV", s.fov > 0 ? skaar::Va("%.0f", s.fov) : "—");
+    Cell(cell(0), hold ? "ON TARGET" : "ACCURACY", Pct(s.accuracy));
+    Cell(cell(1), "KILLS", skaar::Va("%d", s.kills));
+    Cell(cell(2), "MEAN TTK", s.ttk > 0 ? skaar::Va("%.0f MS", s.ttk) : "—");
+    Cell(cell(3), hold ? "TIME ON" : "HITS", hold ? skaar::Va("%.1f S", s.onTarget) : skaar::Va("%d/%d", s.hits, s.shots));
+    Cell(cell(4), "CM / 360", s.sensCm360 > 0 ? skaar::Va("%.1f", s.sensCm360) : "—");
+    Cell(cell(5), "FOV", s.fov > 0 ? skaar::Va("%.0f", s.fov) : "—");
+    if (o) {
+        Delta(cell(0), (s.accuracy - o->accuracy) * 100, "%+.1f PT", true);
+        Delta(cell(1), static_cast<float>(s.kills - o->kills), "%+.0f", true);
+        if (s.ttk > 0 && o->ttk > 0) {
+            Delta(cell(2), s.ttk - o->ttk, "%+.0f MS", false);
+        }
+        if (hold) {
+            Delta(cell(3), s.onTarget - o->onTarget, "%+.1f S", true);
+        } else {
+            Delta(cell(3), static_cast<float>(s.hits - o->hits), "%+.0f", true);
+        }
+        if (std::fabs(s.sensCm360 - o->sensCm360) > 0.05f && o->sensCm360 > 0) {
+            Label(cell(4).x + 22, cell(4).y + 98, skaar::Va("WAS %.1f", o->sensCm360), theme::kCreamFaint);
+        }
+        Label(cx, top + 30 + cellH + 26, "COMPARED WITH  " + compareWhy + skaar::Va("  ·  %.0f", o->score),
+              theme::kCreamFaint);
+    }
 
     // three panels
-    const float py = top + 200, ph = h - py - 230, gap = 70;
+    const float py = top + 214, ph = h - py - 230, gap = 70;
     const float pw = (w - 2 * gap) / 3;
-    DrawTtkPanel({m, py, pw, ph}, *rec, hold);
-    DrawDispersionPanel({m + pw + gap, py, pw, ph}, *rec, hold);
-    DrawPathPanel({m + 2 * (pw + gap), py, pw, ph}, *rec);
+    DrawTtkPanel({m, py, pw, ph}, run, hold, other);
+    DrawDispersionPanel({m + pw + gap, py, pw, ph}, run, hold);
+    DrawPathPanel({m + 2 * (pw + gap), py, pw, ph}, run);
 
     const float by = h - 196;
-    if (ActionButton({m, by, 360, 64}, "Replay this run", "IN GAME")) {
+    if (ActionButton({m, by, 330, 64}, "Replay", "IN GAME")) {
         Exec(skaar::Va("sk_replay %s\n", ui.selectedRun.c_str()));
         Close();
     }
-    if (data.FindScenario(s.scenario) && ActionButton({m + 390, by, 360, 64}, "Play again", "")) {
+    if (data.FindScenario(s.scenario) && ActionButton({m + 350, by, 330, 64}, "Play again", "")) {
         StartScenario(s.scenario);
     }
-    Label(m + w, by + 40, ui.selectedRun, theme::kCreamFaint, Align::kRight);
+    const bool pinned = ui.pinnedRun == ui.selectedRun;
+    if (ActionButton({m + 700, by, 330, 64}, pinned ? "Unpin" : "Pin to compare", "")) {
+        ui.pinnedRun = pinned ? "" : ui.selectedRun;
+    }
 }
 
 // ---- benchmarks ------------------------------------------------------------------------

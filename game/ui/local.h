@@ -101,8 +101,8 @@ struct State {
     InsightsTab insightsTab = InsightsTab::kOverview;
     SettingsTab settingsTab = SettingsTab::kAim;
     std::string selectedRun;           // file of the run shown in Insights › Run
-    std::optional<skaar::RunRecord> runRecord;
-    std::string runRecordFile;
+    std::string pinnedRun;             // compared against in Insights › Run (else the scenario's best)
+    std::map<std::string, skaar::RunRecord> records;  // loaded run files, a few at a time
     std::string runError;
     std::map<std::string, float> scroll;  // per list
 

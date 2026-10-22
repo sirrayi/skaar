@@ -115,12 +115,9 @@ const skaar::RunRecord* LoadRunRecord(const std::string& file) {
     if (file.empty()) {
         return nullptr;
     }
-    if (ui.runRecordFile == file) {
-        return ui.runRecord ? &*ui.runRecord : nullptr;
+    if (auto it = ui.records.find(file); it != ui.records.end()) {
+        return &it->second;
     }
-    ui.runRecordFile = file;
-    ui.runRecord.reset();
-    ui.runError.clear();
     std::string text, error;
     if (!trap::FileRead(file.c_str(), text)) {
         ui.runError = "The run file is missing: " + file;
@@ -131,8 +128,10 @@ const skaar::RunRecord* LoadRunRecord(const std::string& file) {
         ui.runError = "The run file can't be read: " + error;
         return nullptr;
     }
-    ui.runRecord = std::move(record);
-    return &*ui.runRecord;
+    if (ui.records.size() >= 8) {
+        ui.records.erase(ui.records.begin());
+    }
+    return &ui.records.emplace(file, std::move(record)).first->second;
 }
 
 }  // namespace ui
