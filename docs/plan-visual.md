@@ -16,7 +16,8 @@ The token names are from the earlier dark theme and are kept so callers don't ch
 - `range_*` textures are light taupe (`tools/gen_assets.py`). `data/maps-src/range.json` bakes ambient 0.47 + sun 0.05:
   the engine doubles vertex light (overbright), so this lands near the texture values.
 - The GL2 renderer's HDR auto-exposure pulled the light room to mid-grey and turned the targets maroon.
-  The trainer sets `r_autoExposure 0` and `r_toneMap 0` on every cgame load (archived configs hold the old `1`).
+  The trainer sets `r_autoExposure 0` on every cgame load (archived configs hold the old `1`) and keeps `r_toneMap 1`:
+  with `r_hdr 1` (the default) and the tonemap off, everything blows out to white. Checked with `r_hdr` 1 and 0.
 - Targets: `rgbGen entity` times a nearly flat matcap (`target_shade.tga`, 6% darkening at the very rim), so they
   read as matte chalk. A hit blanches the target briefly.
 
