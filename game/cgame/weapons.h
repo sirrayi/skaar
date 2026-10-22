@@ -30,6 +30,10 @@ void PlayerEvent(int event, int eventParm, const playerState_t& ps);
 // Each frame after the world, next to trainer::DrawHud.
 void DrawHud();
 
+// True while the local player has an arena loadout (any weapon): the arena HUD
+// is up, so the base HUD keeps the bottom of the screen clear.
+bool HudActive();
+
 // The weapon the player has selected, sent with every user command (0 = none).
 int SelectedWeapon();
 

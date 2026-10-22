@@ -502,6 +502,8 @@ void DrawHud() {
     }
 }
 
+bool HudActive() { return cg.predicted.stats[STAT_WEAPONS] != 0; }
+
 int SelectedWeapon() {
     const playerState_t& ps = cg.predicted;
     if (Owns(ps, st.selected)) {
