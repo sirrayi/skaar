@@ -61,6 +61,7 @@ std::string Data::NameOf(const std::string& scenarioId) const {
 }
 
 void LoadData() {
+    const int start = trap::Milliseconds();
     Data d;
     d.now = Now();
 
@@ -106,6 +107,8 @@ void LoadData() {
     for (const skaar::Benchmark& b : data.benchmarks) {
         data.progress.push_back(skaar::insights::Progress(b, data.perScenario, data.history, data.scenarios));
     }
+    Com_DPrintf("ui: loaded %zu scenarios, %zu runs in %d ms\n", data.scenarios.size(), data.history.size(),
+                trap::Milliseconds() - start);
 }
 
 const skaar::RunRecord* LoadRunRecord(const std::string& file) {
