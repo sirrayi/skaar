@@ -16,8 +16,9 @@ option(BUILD_CLIENT "Build client" ON)
 option(BUILD_RENDERER_GL1 "Build GL1 renderer" ON)
 option(BUILD_RENDERER_GL2 "Build GL2 renderer" ON)
 option(BUILD_GAME_LIBRARIES "Build game module libraries" ON)
-option(BUILD_GAME_QVMS "Build game module qvms" ON)
-option(BUILD_STANDALONE "Build binaries for standalone games" OFF)
+option(BUILD_GAME_QVMS "Build game module qvms" OFF)
+option(BUILD_STANDALONE "Build binaries for standalone games" ON)
+option(BUILD_MISSIONPACK "Build Team Arena (missionpack) game modules" OFF)
 
 option(USE_RENDERER_DLOPEN "Dynamically load the renderer(s)" ON)
 option(USE_OPENAL "OpenAL audio" ON)
@@ -92,6 +93,11 @@ endif()
 
 set(SOURCE_DIR ${CMAKE_SOURCE_DIR}/code)
 
+if(BUILD_STANDALONE)
+    # Applies to engine and game modules so q_shared.h identity is consistent
+    add_compile_definitions(STANDALONE)
+endif()
+
 include(compilers/all)
 include(platforms/all)
 include(libraries/all)
@@ -101,7 +107,11 @@ include(renderer_gl1)
 include(renderer_gl2)
 include(client)
 include(basegame)
-include(missionpack)
+if(BUILD_MISSIONPACK)
+    include(missionpack)
+endif()
+
+include(skaar/data)
 
 include(post_configure)
 include(installer)

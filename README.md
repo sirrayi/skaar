@@ -1,3 +1,17 @@
+# Skaar
+
+Skaar is an open-source aim trainer and arena/movement shooter (working name). It is a fork of
+**[ioquake3](https://github.com/ioquake/ioq3)**, licensed GPLv2-or-later (see `LICENSE`).
+It runs on its own free assets. No Quake III data is needed or used.
+
+- Project brief and milestones: `docs/BRIEF.md`
+- Build on macOS: `docs/build-macos.md`
+- Dev loop (auto rebuild + live errors): `docs/DEV_ENV.md`, `docs/dev-loop.md`
+
+All credit for the engine goes to id Software and the ioquake3 project. The original ioquake3 README follows.
+
+---
+
 ![Build](https://github.com/ioquake/ioq3/workflows/Build/badge.svg)
 
                    ,---------------------------------------.

@@ -263,6 +263,13 @@ void Sys_InitPIDFile( const char *gamedir ) {
 		char message[1024];
 		char modName[MAX_OSPATH];
 
+		// skaar: the dev loop kills and relaunches the client constantly, so a
+		// modal dialog here would block every restart. Dev scripts set this to 0.
+		if( !Cvar_Get( "com_abnormalExitDialog", "1", CVAR_INIT )->integer ) {
+			Com_Printf( "Previous run did not exit cleanly (dialog suppressed)\n" );
+			return;
+		}
+
 		FS_GetModDescription( gamedir, modName, sizeof ( modName ) );
 		Q_CleanStr( modName );
 
