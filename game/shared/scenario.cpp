@@ -154,6 +154,46 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
     }
 }
 
+std::string ScenarioToJson(const Scenario& s) {
+    auto range = [](Range r) { return r.min == r.max ? json(r.min) : json::array({r.min, r.max}); };
+    const auto& t = s.targets;
+    json spawn = {{"shape", t.shape == SpawnShape::kGrid ? "grid" : "cone"},
+                  {"distance", range(t.distance)},
+                  {"yaw", range(t.yaw)},
+                  {"pitch", range(t.pitch)}};
+    if (t.shape == SpawnShape::kGrid) {
+        spawn["cols"] = t.cols;
+        spawn["rows"] = t.rows;
+    }
+    json targets = {{"alive", t.alive}, {"radius", t.radius}, {"health", t.health}, {"spawn", spawn}};
+    if (t.lifetime > 0) {
+        targets["lifetime"] = t.lifetime;
+    }
+    if (t.motion != MotionType::kStatic) {
+        targets["motion"] = {{"type", t.motion == MotionType::kStrafe ? "strafe" : "float"},
+                             {"speed", range(t.speed)},
+                             {"changeEvery", range(t.changeEvery)}};
+    }
+    json j = {
+        {"name", s.name},
+        {"category", s.category},
+        {"description", s.description},
+        {"map", s.map},
+        {"duration", s.duration},
+        {"player", {{"move", s.playerMove}, {"ruleset", s.ruleset}}},
+        {"fire", s.fire == FireMode::kHold ? "hold" : "click"},
+        {"targets", targets},
+        {"score",
+         {{"kill", s.score.kill},
+          {"accuracyWeight", s.score.accuracyWeight},
+          {"perSecondOnTarget", s.score.perSecondOnTarget}}},
+    };
+    if (s.seed) {
+        j["seed"] = s.seed;
+    }
+    return j.dump(2) + "\n";
+}
+
 bool ParseBenchmark(std::string_view id, std::string_view text, Benchmark& out, std::string& error) {
     try {
         const json j = ParseJson(text);

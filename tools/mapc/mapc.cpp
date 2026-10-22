@@ -1,4 +1,4 @@
-// mapc: compile a JSON list of axis-aligned boxes into a Quake 3 BSP (IBSP v46).
+// mapc: compile a JSON list of boxes and ramps into a Quake 3 BSP (IBSP v46).
 //
 //   mapc <input.json> <output.bsp>
 //
@@ -6,10 +6,13 @@
 // a single leaf holding every brush and surface, one vis cluster that sees
 // itself (everything is visible), and vertex lighting baked from an ambient term plus one sun.
 // Collision tests every brush per trace, which is fine for test rooms and
-// aim-trainer arenas with tens of brushes. See docs/mapc.md for the format.
+// aim-trainer arenas with tens of brushes. Entities with their own brushes
+// become submodels ("*1", "*2", ...); trigger_* ones are trigger volumes.
+// See docs/mapc.md for the format.
 //
 // This file is part of Skaar. GPLv2 or later.
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -32,6 +35,9 @@ namespace {
 constexpr int kBspVersion = 46;
 constexpr int kNumLumps = 17;
 constexpr int kContentsSolid = 1;
+constexpr int kContentsTrigger = 0x40000000;  // CONTENTS_TRIGGER
+constexpr int kSurfNoDraw = 0x80;             // SURF_NODRAW
+constexpr const char* kTriggerShader = "textures/common/trigger";
 constexpr int kSurfacePlanar = 1;  // MST_PLANAR
 constexpr int kLightmapByVertex = -3;  // LIGHTMAP_BY_VERTEX (-1 would mean unlit-by-map, lit like a model)
 
@@ -87,9 +93,23 @@ static_assert(sizeof(DSurface) == 104);
 
 using Vec3 = std::array<float, 3>;
 
+struct Plane3 {
+    Vec3 normal;
+    float dist;  // inside: dot(p, normal) < dist
+};
+
+// A convex brush: its axial bounds plus any non-axial sides (a ramp's slope).
 struct Box {
     Vec3 min, max;
     std::string material;
+    std::vector<Plane3> extra;
+};
+
+// An entity with its own brushes: becomes submodel "*N".
+struct BrushEntity {
+    size_t entity;  // index in the entities array
+    bool trigger;   // trigger_*: CONTENTS_TRIGGER, nothing drawn
+    std::vector<Box> boxes;
 };
 
 struct Light {
@@ -120,12 +140,129 @@ void AddRoom(const json& room, std::vector<Box>& boxes) {
     const std::string floorMat = room.value("floor", walls);
     const std::string ceiling = room.value("ceiling", walls);
 
-    boxes.push_back({{mn[0] - t, mn[1] - t, mn[2] - t}, {mx[0] + t, mx[1] + t, mn[2]}, floorMat});
-    boxes.push_back({{mn[0] - t, mn[1] - t, mx[2]}, {mx[0] + t, mx[1] + t, mx[2] + t}, ceiling});
-    boxes.push_back({{mn[0] - t, mn[1] - t, mn[2]}, {mn[0], mx[1] + t, mx[2]}, walls});
-    boxes.push_back({{mx[0], mn[1] - t, mn[2]}, {mx[0] + t, mx[1] + t, mx[2]}, walls});
-    boxes.push_back({{mn[0], mn[1] - t, mn[2]}, {mx[0], mn[1], mx[2]}, walls});
-    boxes.push_back({{mn[0], mx[1], mn[2]}, {mx[0], mx[1] + t, mx[2]}, walls});
+    boxes.push_back({{mn[0] - t, mn[1] - t, mn[2] - t}, {mx[0] + t, mx[1] + t, mn[2]}, floorMat, {}});
+    boxes.push_back({{mn[0] - t, mn[1] - t, mx[2]}, {mx[0] + t, mx[1] + t, mx[2] + t}, ceiling, {}});
+    boxes.push_back({{mn[0] - t, mn[1] - t, mn[2]}, {mn[0], mx[1] + t, mx[2]}, walls, {}});
+    boxes.push_back({{mx[0], mn[1] - t, mn[2]}, {mx[0] + t, mx[1] + t, mx[2]}, walls, {}});
+    boxes.push_back({{mn[0], mn[1] - t, mn[2]}, {mx[0], mn[1], mx[2]}, walls, {}});
+    boxes.push_back({{mn[0], mx[1], mn[2]}, {mx[0], mx[1] + t, mx[2]}, walls, {}});
+}
+
+Box ReadBox(const json& b) {
+    Box box{ReadVec3(b.at("min"), "brush.min"), ReadVec3(b.at("max"), "brush.max"),
+            b.value("material", std::string("wall")), {}};
+    for (int i = 0; i < 3; i++) {
+        if (box.min[i] >= box.max[i]) {
+            throw std::runtime_error("brush min must be < max on every axis");
+        }
+    }
+    return box;
+}
+
+// "ramp": a wedge filling its box under a slope that rises from min.z on one
+// side to max.z on the opposite side ("rise": "+x" climbs toward +x).
+Box ReadRamp(const json& r) {
+    Box box = ReadBox(r);
+    const std::string rise = r.value("rise", std::string("+x"));
+    if (rise.size() != 2 || (rise[0] != '+' && rise[0] != '-') || (rise[1] != 'x' && rise[1] != 'y')) {
+        throw std::runtime_error("ramp.rise must be +x, -x, +y or -y");
+    }
+    const int axis = rise[1] == 'x' ? 0 : 1;
+    const bool up = rise[0] == '+';
+    const float run = box.max[axis] - box.min[axis];
+    const float height = box.max[2] - box.min[2];
+
+    // outward normal of the slope, pointing up and back down the slope
+    Vec3 n = {0, 0, run};
+    n[axis] = up ? -height : height;
+    const float len = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+    for (float& c : n) {
+        c /= len;
+    }
+    Vec3 low = box.min;  // a point on the low edge
+    low[axis] = up ? box.min[axis] : box.max[axis];
+    box.extra.push_back({n, n[0] * low[0] + n[1] * low[1] + n[2] * low[2]});
+    return box;
+}
+
+void ReadSolids(const json& j, std::vector<Box>& out) {
+    if (j.contains("brushes")) {
+        for (const json& b : j.at("brushes")) {
+            out.push_back(ReadBox(b));
+        }
+    }
+    if (j.contains("ramps")) {
+        for (const json& r : j.at("ramps")) {
+            out.push_back(ReadRamp(r));
+        }
+    }
+}
+
+// Convex polygon on a plane, clipped by other planes (Sutherland-Hodgman).
+using Polygon = std::vector<Vec3>;
+
+Polygon BaseWinding(const Plane3& p) {
+    // tangents t1, t2 with t1 x t2 = normal, so the corners below run
+    // counter-clockwise seen from the front
+    const Vec3& n = p.normal;
+    Vec3 ref = std::fabs(n[2]) < 0.9f ? Vec3{0, 0, 1} : Vec3{1, 0, 0};
+    Vec3 t1 = {ref[1] * n[2] - ref[2] * n[1], ref[2] * n[0] - ref[0] * n[2], ref[0] * n[1] - ref[1] * n[0]};
+    const float l = std::sqrt(t1[0] * t1[0] + t1[1] * t1[1] + t1[2] * t1[2]);
+    for (float& c : t1) {
+        c /= l;
+    }
+    const Vec3 t2 = {n[1] * t1[2] - n[2] * t1[1], n[2] * t1[0] - n[0] * t1[2], n[0] * t1[1] - n[1] * t1[0]};
+    constexpr float kBig = 65536;
+    Vec3 center;
+    for (int i = 0; i < 3; i++) {
+        center[i] = n[i] * p.dist;
+    }
+    Polygon w;
+    const float signs[4][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+    for (const auto& s : signs) {
+        Vec3 v;
+        for (int i = 0; i < 3; i++) {
+            v[i] = center[i] + (s[0] * t1[i] + s[1] * t2[i]) * kBig;
+        }
+        w.push_back(v);
+    }
+    return w;
+}
+
+// Keeps the part of the polygon behind the plane (inside the brush).
+Polygon Clip(const Polygon& in, const Plane3& p) {
+    constexpr float kEpsilon = 0.01f;
+    Polygon out;
+    for (size_t i = 0; i < in.size(); i++) {
+        const Vec3& a = in[i];
+        const Vec3& b = in[(i + 1) % in.size()];
+        const float da = a[0] * p.normal[0] + a[1] * p.normal[1] + a[2] * p.normal[2] - p.dist;
+        const float db = b[0] * p.normal[0] + b[1] * p.normal[1] + b[2] * p.normal[2] - p.dist;
+        if (da <= kEpsilon) {
+            out.push_back(a);
+        }
+        if ((da < -kEpsilon && db > kEpsilon) || (da > kEpsilon && db < -kEpsilon)) {
+            const float t = da / (da - db);
+            Vec3 m;
+            for (int k = 0; k < 3; k++) {
+                m[k] = a[k] + t * (b[k] - a[k]);
+            }
+            out.push_back(m);
+        }
+    }
+    return out;
+}
+
+float Area(const Polygon& w) {
+    Vec3 sum = {0, 0, 0};
+    for (size_t i = 1; i + 1 < w.size(); i++) {
+        const Vec3 e1 = {w[i][0] - w[0][0], w[i][1] - w[0][1], w[i][2] - w[0][2]};
+        const Vec3 e2 = {w[i + 1][0] - w[0][0], w[i + 1][1] - w[0][1], w[i + 1][2] - w[0][2]};
+        sum[0] += e1[1] * e2[2] - e1[2] * e2[1];
+        sum[1] += e1[2] * e2[0] - e1[0] * e2[2];
+        sum[2] += e1[0] * e2[1] - e1[1] * e2[0];
+    }
+    return 0.5f * std::sqrt(sum[0] * sum[0] + sum[1] * sum[1] + sum[2] * sum[2]);
 }
 
 // ---- compiler --------------------------------------------------------------
@@ -153,23 +290,20 @@ public:
                 AddRoom(room, boxes_);
             }
         }
-        if (doc.contains("brushes")) {
-            for (const json& b : doc["brushes"]) {
-                Box box{ReadVec3(b.at("min"), "brush.min"), ReadVec3(b.at("max"), "brush.max"),
-                        b.value("material", std::string("wall"))};
-                for (int i = 0; i < 3; i++) {
-                    if (box.min[i] >= box.max[i]) {
-                        throw std::runtime_error("brush min must be < max on every axis");
-                    }
-                }
-                boxes_.push_back(box);
-            }
-        }
+        ReadSolids(doc, boxes_);
         if (boxes_.empty()) {
             throw std::runtime_error("map has no brushes or rooms");
         }
         if (doc.contains("entities")) {
             entities_ = doc["entities"];
+            for (size_t i = 0; i < entities_.size(); i++) {
+                const json& ent = entities_[i];
+                BrushEntity be{i, ent.value("classname", std::string()).rfind("trigger_", 0) == 0, {}};
+                ReadSolids(ent, be.boxes);
+                if (!be.boxes.empty()) {
+                    brushEntities_.push_back(std::move(be));
+                }
+            }
         }
     }
 
@@ -185,7 +319,9 @@ public:
 private:
     int ShaderFor(const std::string& material) {
         auto it = materials_.find(material);
-        const std::string name = it != materials_.end() ? it->second : "textures/skaar/" + material;
+        const std::string name = material == kTriggerShader ? material
+                                 : it != materials_.end()   ? it->second
+                                                            : "textures/skaar/" + material;
         for (size_t i = 0; i < shaders_.size(); i++) {
             if (name == shaders_[i].name) {
                 return static_cast<int>(i);
@@ -197,6 +333,10 @@ private:
         DShader s{};
         std::memcpy(s.name, name.c_str(), name.size());
         s.contentFlags = kContentsSolid;
+        if (name == kTriggerShader) {
+            s.contentFlags = kContentsTrigger;
+            s.surfaceFlags = kSurfNoDraw;
+        }
         shaders_.push_back(s);
         return static_cast<int>(shaders_.size() - 1);
     }
@@ -210,28 +350,125 @@ private:
     }
 
     void BuildBrushesAndSurfaces() {
+        // the world first: model 0's brushes and surfaces must come first
         for (const Box& box : boxes_) {
-            const int shader = ShaderFor(box.material);
-            DBrush brush{static_cast<int32_t>(sides_.size()), 6, shader};
-
-            // q3 convention: the first six sides are the axial planes in the
-            // order -x, +x, -y, +y, -z, +z (CM_BoundBrush relies on it)
-            for (int axis = 0; axis < 3; axis++) {
-                for (int positive = 0; positive < 2; positive++) {
-                    DPlane plane{};
-                    plane.normal[axis] = positive ? 1.0f : -1.0f;
-                    plane.dist = positive ? box.max[axis] : -box.min[axis];
-                    sides_.push_back({static_cast<int32_t>(planes_.size()), shader});
-                    planes_.push_back(plane);
-                    AddFace(box, axis, positive != 0, shader);
-                }
-            }
-            brushes_.push_back(brush);
+            EmitBrush(box, ShaderFor(box.material), true);
             for (int i = 0; i < 3; i++) {
                 mins_[i] = std::fmin(mins_[i], box.min[i]);
                 maxs_[i] = std::fmax(maxs_[i], box.max[i]);
             }
         }
+        numWorldBrushes_ = brushes_.size();
+        numWorldSurfaces_ = surfaces_.size();
+
+        // then one submodel per brush entity
+        for (BrushEntity& be : brushEntities_) {
+            DModel model{};
+            model.firstBrush = static_cast<int32_t>(brushes_.size());
+            model.firstSurface = static_cast<int32_t>(surfaces_.size());
+            for (int i = 0; i < 3; i++) {
+                model.mins[i] = 1e9f;
+                model.maxs[i] = -1e9f;
+            }
+            for (const Box& box : be.boxes) {
+                EmitBrush(box, ShaderFor(be.trigger ? kTriggerShader : box.material), !be.trigger);
+                for (int i = 0; i < 3; i++) {
+                    model.mins[i] = std::fmin(model.mins[i], box.min[i]);
+                    model.maxs[i] = std::fmax(model.maxs[i], box.max[i]);
+                }
+            }
+            model.numBrushes = static_cast<int32_t>(brushes_.size()) - model.firstBrush;
+            model.numSurfaces = static_cast<int32_t>(surfaces_.size()) - model.firstSurface;
+            submodels_.push_back(model);
+        }
+    }
+
+    void EmitBrush(const Box& box, int shader, bool drawn) {
+        DBrush brush{static_cast<int32_t>(sides_.size()), static_cast<int32_t>(6 + box.extra.size()), shader};
+
+        // q3 convention: the first six sides are the axial planes in the
+        // order -x, +x, -y, +y, -z, +z (CM_BoundBrush relies on it)
+        std::vector<Plane3> planes;
+        for (int axis = 0; axis < 3; axis++) {
+            for (int positive = 0; positive < 2; positive++) {
+                DPlane plane{};
+                plane.normal[axis] = positive ? 1.0f : -1.0f;
+                plane.dist = positive ? box.max[axis] : -box.min[axis];
+                sides_.push_back({static_cast<int32_t>(planes_.size()), shader});
+                planes_.push_back(plane);
+                planes.push_back({{plane.normal[0], plane.normal[1], plane.normal[2]}, plane.dist});
+                if (drawn && box.extra.empty()) {
+                    AddFace(box, axis, positive != 0, shader);  // plain box: one quad per side
+                }
+            }
+        }
+        for (const Plane3& p : box.extra) {
+            sides_.push_back({static_cast<int32_t>(planes_.size()), shader});
+            planes_.push_back({{p.normal[0], p.normal[1], p.normal[2]}, p.dist});
+            planes.push_back(p);
+        }
+        brushes_.push_back(brush);
+
+        // other shapes: each side's polygon is a big quad on its plane clipped
+        // by all the other sides; sides squeezed to nothing (a ramp's top and
+        // low end) draw nothing
+        if (drawn && !box.extra.empty()) {
+            for (size_t i = 0; i < planes.size(); i++) {
+                Polygon w = BaseWinding(planes[i]);
+                for (size_t j = 0; j < planes.size() && w.size() >= 3; j++) {
+                    if (j != i) {
+                        w = Clip(w, planes[j]);
+                    }
+                }
+                if (w.size() >= 3 && Area(w) > 1.0f) {
+                    AddPolygon(w, planes[i].normal, shader);
+                }
+            }
+        }
+    }
+
+    // A convex polygon (counter-clockwise seen from the front) as a triangle fan
+    void AddPolygon(const Polygon& w, const Vec3& normalVec, int shader) {
+        const float normal[3] = {normalVec[0], normalVec[1], normalVec[2]};
+        DSurface surf{};
+        surf.shaderNum = shader;
+        surf.fogNum = -1;
+        surf.surfaceType = kSurfacePlanar;
+        surf.firstVert = static_cast<int32_t>(verts_.size());
+        surf.numVerts = static_cast<int32_t>(w.size());
+        surf.firstIndex = static_cast<int32_t>(indexes_.size());
+        surf.numIndexes = static_cast<int32_t>((w.size() - 2) * 3);
+        surf.lightmapNum = kLightmapByVertex;
+        std::memcpy(surf.lightmapVecs[2], normal, sizeof(normal));
+
+        // world-aligned texture mapping on the plane's dominant axis, like boxes
+        int axis = 0;
+        for (int i = 1; i < 3; i++) {
+            if (std::fabs(normal[i]) > std::fabs(normal[axis])) {
+                axis = i;
+            }
+        }
+        const int u = (axis + 1) % 3, v = (axis + 2) % 3;
+        const uint8_t shade = Shade(normal);
+        for (const Vec3& p : w) {
+            DrawVert vert{};
+            for (int i = 0; i < 3; i++) {
+                vert.xyz[i] = p[i];
+            }
+            vert.st[0] = p[u] / 128.0f;
+            vert.st[1] = -p[v] / 128.0f;
+            std::memcpy(vert.normal, normal, sizeof(normal));
+            vert.color[0] = vert.color[1] = vert.color[2] = shade;
+            vert.color[3] = 255;
+            verts_.push_back(vert);
+        }
+        // q3 renders clockwise-from-the-front triangles
+        for (int32_t i = 1; i + 1 < surf.numVerts; i++) {
+            indexes_.push_back(0);
+            indexes_.push_back(i + 1);
+            indexes_.push_back(i);
+        }
+        surfaces_.push_back(surf);
     }
 
     // One quad per brush side, facing out of the brush
@@ -292,9 +529,9 @@ private:
         leaf.cluster = 0;
         leaf.area = 0;
         leaf.firstLeafSurface = 0;
-        leaf.numLeafSurfaces = static_cast<int32_t>(surfaces_.size());
+        leaf.numLeafSurfaces = static_cast<int32_t>(numWorldSurfaces_);
         leaf.firstLeafBrush = 0;
-        leaf.numLeafBrushes = static_cast<int32_t>(brushes_.size());
+        leaf.numLeafBrushes = static_cast<int32_t>(numWorldBrushes_);
 
         for (int i = 0; i < 3; i++) {
             node.mins[i] = leaf.mins[i] = static_cast<int32_t>(std::floor(mins_[i])) - 1;
@@ -303,10 +540,12 @@ private:
         nodes_.push_back(node);
         leafs_.push_back(leaf);
 
-        for (size_t i = 0; i < surfaces_.size(); i++) {
+        // submodels aren't in the world leaf: the collision model gives each
+        // one its own leaf, and the renderer draws them through their entity
+        for (size_t i = 0; i < numWorldSurfaces_; i++) {
             leafSurfaces_.push_back(static_cast<int32_t>(i));
         }
-        for (size_t i = 0; i < brushes_.size(); i++) {
+        for (size_t i = 0; i < numWorldBrushes_; i++) {
             leafBrushes_.push_back(static_cast<int32_t>(i));
         }
 
@@ -315,9 +554,10 @@ private:
             world.mins[i] = mins_[i];
             world.maxs[i] = maxs_[i];
         }
-        world.numSurfaces = static_cast<int32_t>(surfaces_.size());
-        world.numBrushes = static_cast<int32_t>(brushes_.size());
+        world.numSurfaces = static_cast<int32_t>(numWorldSurfaces_);
+        world.numBrushes = static_cast<int32_t>(numWorldBrushes_);
         models_.push_back(world);
+        models_.insert(models_.end(), submodels_.begin(), submodels_.end());
 
         BuildLightGrid();
     }
@@ -362,9 +602,18 @@ private:
 
     std::string EntityString() const {
         std::string out = "{\n\"classname\" \"worldspawn\"\n\"message\" \"" + message_ + "\"\n}\n";
-        for (const json& ent : entities_) {
+        for (size_t e = 0; e < entities_.size(); e++) {
+            const json& ent = entities_[e];
             out += "{\n";
+            for (size_t m = 0; m < brushEntities_.size(); m++) {
+                if (brushEntities_[m].entity == e) {
+                    out += "\"model\" \"*" + std::to_string(m + 1) + "\"\n";
+                }
+            }
             for (const auto& [key, value] : ent.items()) {
+                if (key == "brushes" || key == "ramps") {
+                    continue;  // compiled into the submodel
+                }
                 std::string text;
                 if (value.is_string()) {
                     text = value.get<std::string>();
@@ -429,6 +678,10 @@ private:
     Light light_;
     std::vector<Box> boxes_;
     json entities_ = json::array();
+    std::vector<BrushEntity> brushEntities_;
+    std::vector<DModel> submodels_;
+    size_t numWorldBrushes_ = 0;
+    size_t numWorldSurfaces_ = 0;
 
     Vec3 mins_ = {1e9f, 1e9f, 1e9f};
     Vec3 maxs_ = {-1e9f, -1e9f, -1e9f};

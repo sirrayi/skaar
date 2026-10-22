@@ -106,3 +106,16 @@ TEST("benchmark tiers and progress") {
     CHECK(!ParseBenchmark("b", R"({"tiers": ["a", "b"], "scenarios": [{"id": "s", "thresholds": [20, 10]}]})", b, error));
     CHECK(!ParseBenchmark("b", R"({"tiers": ["a", "b"], "scenarios": [{"id": "s", "thresholds": [10]}]})", b, error));
 }
+
+TEST("scenario JSON round trip (the in-game editor saves with it)") {
+    for (const auto& e : std::filesystem::directory_iterator(kData / "scenarios")) {
+        Scenario a, b;
+        std::string error;
+        CHECK(ParseScenario("x", Slurp(e.path()), a, error));
+        CHECK(ParseScenario("x", ScenarioToJson(a), b, error));
+        CHECK(ScenarioToJson(a) == ScenarioToJson(b));
+        CHECK(a.name == b.name && a.fire == b.fire && a.targets.alive == b.targets.alive);
+        CHECK(a.targets.motion == b.targets.motion && a.playerMove == b.playerMove && a.ruleset == b.ruleset);
+        CHECK_NEAR(a.targets.speed.max, b.targets.speed.max, 1e-4);
+    }
+}

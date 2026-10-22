@@ -67,6 +67,11 @@ void Back() {
             }
             break;
         default:
+            if (ui.screen == Screen::kEditor) {
+                ui.draft.reset();
+                Open(Screen::kPlay);
+                return;
+            }
             if (ui.screen == Screen::kInsights && ui.insightsTab == InsightsTab::kRun) {
                 ui.insightsTab = InsightsTab::kOverview;
                 ui.focus = 0;
@@ -238,6 +243,9 @@ void Refresh(int realtime) {
         case Screen::kInGame:
             DrawInGame();
             break;
+        case Screen::kEditor:
+            DrawEditor();
+            break;
         case Screen::kNone:
             break;
     }
@@ -271,6 +279,9 @@ bool ConsoleCommand() {
     const std::string what = trap::Argv(1);
     if (what == "run" && trap::Argc() > 2) {
         ShowRun(trap::Argv(2));
+    } else if (what == "edit" && trap::Argc() > 2) {
+        LoadData();
+        EditScenario(trap::Argv(2));
     } else if (what == "insights" || what == "benchmarks" || what == "scenarios") {
         Open(Screen::kInsights);
         ui.insightsTab = what == "benchmarks"  ? InsightsTab::kBenchmarks

@@ -62,6 +62,10 @@ struct Scenario {
 // error on bad JSON or bad values.
 bool ParseScenario(std::string_view id, std::string_view json, Scenario& out, std::string& error);
 
+// The scenario as a JSON file (everything but the id, which is the file name).
+// ParseScenario(ScenarioToJson(s)) gives s back.
+std::string ScenarioToJson(const Scenario& s);
+
 struct Benchmark {
     std::string id;
     std::string name;

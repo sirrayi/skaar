@@ -91,8 +91,12 @@ void DrawDetail(const skaar::Scenario& s, float x, float top, float w) {
                     theme::kCreamFaint);
     }
 
-    if (ActionButton({x, h - 200, w, 72}, "Start  " + s.name, "ENTER")) {
+    if (ActionButton({x, h - 200, w - 260, 72}, "Start  " + s.name, "ENTER")) {
         StartScenario(s.id);
+        return;
+    }
+    if (ActionButton({x + w - 240, h - 200, 240, 72}, "Customize", "")) {
+        EditScenario(s.id);
     }
 }
 

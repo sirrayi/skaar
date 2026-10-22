@@ -15,7 +15,7 @@ bool g_editCancel = false;
 bool g_navigated = false;  // the focus moved by keyboard this frame
 int g_dragging = -1;       // focus id of the slider being dragged
 
-constexpr float kRowH = 64;
+float kRowH = 64;  // settings-style rows; the editor packs them tighter (SetRowHeight)
 constexpr float kControlX = 560;  // settings control column, from the margin
 
 int g_lastFocus = -1;
@@ -72,6 +72,8 @@ void DrawMarker() {
     kit::Fill(g_marker.x, g_marker.y, 4, g_marker.h, kEmber);
     g_marker.target = false;
 }
+
+void SetRowHeight(float h) { kRowH = h; }
 
 int TakeAdjust() {
     const int a = ui.adjust;
@@ -419,10 +421,9 @@ std::string FormatValue(const char* format, float v) {
 
 }  // namespace
 
-bool SliderRow(float y, const char* label, const char* cvar, float lo, float hi, float step, const char* format,
-               const std::string& hint) {
+bool ValueSlider(float y, const char* label, float& v, float lo, float hi, float step, const char* format,
+                 const std::string& hint) {
     RowLayout row = BeginRow(y, label, hint);
-    float v = trap::CvarValue(cvar);
     const float trackW = 420, trackX = row.controlX, trackY = row.baseline - 9;
     const Rect track{trackX - 10, y + 8, trackW + 20, kRowH - 16};
 
@@ -444,9 +445,6 @@ bool SliderRow(float y, const char* label, const char* cvar, float lo, float hi,
             changed = true;
         }
     }
-    if (changed) {
-        trap::CvarSet(cvar, skaar::Va("%g", v));
-    }
 
     const float frac = hi > lo ? std::clamp((v - lo) / (hi - lo), 0.0f, 1.0f) : 0;
     kit::Fill(trackX, trackY, trackW, 2, theme::kHairlineStrong);
@@ -454,6 +452,41 @@ bool SliderRow(float y, const char* label, const char* cvar, float lo, float hi,
     kit::Fill(trackX + trackW * frac - 2, trackY - 9, 4, 20, row.focused ? theme::kCream : theme::kCreamSoft);
     kit::GetFonts().mono.Draw(trackX + trackW + 40, row.baseline, 24, FormatValue(format, v), theme::kCream);
     return changed;
+}
+
+bool SliderRow(float y, const char* label, const char* cvar, float lo, float hi, float step, const char* format,
+               const std::string& hint) {
+    float v = trap::CvarValue(cvar);
+    if (ValueSlider(y, label, v, lo, hi, step, format, hint)) {
+        trap::CvarSet(cvar, skaar::Va("%g", v));
+        return true;
+    }
+    return false;
+}
+
+bool ValueChoice(float y, const char* label, int& index, const std::vector<std::string>& choices,
+                 const std::string& hint) {
+    RowLayout row = BeginRow(y, label, hint);
+    const Rect r{theme::kMargin - 40, y, kit::Width() - 2 * theme::kMargin + 40, kRowH};
+    const int n = static_cast<int>(choices.size());
+    int dir = Adjusted(row.id);
+    if (!dir && Activated(row.id, r)) {
+        dir = 1;
+    }
+    if (n == 0) {
+        return false;
+    }
+    index = std::clamp(index, 0, n - 1);
+    if (dir) {
+        index = (index + dir + n) % n;
+    }
+    const kit::Font& mono = kit::GetFonts().mono;
+    const Color arrow = row.focused ? theme::kCreamSoft : theme::kCreamFaint;
+    mono.Draw(row.controlX, row.baseline, 24, "←", arrow);
+    mono.Draw(row.controlX + 44, row.baseline, 24, kit::Upper(choices[index]), theme::kCream, 0.08f);
+    const float w = mono.Measure(24, kit::Upper(choices[index]), 0.08f);
+    mono.Draw(row.controlX + 44 + w + 24, row.baseline, 24, "→", arrow);
+    return dir != 0;
 }
 
 bool ToggleRow(float y, const char* label, const char* cvar, const std::string& hint) {

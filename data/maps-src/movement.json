@@ -4,9 +4,10 @@
 // South lane (y < 0): a 4600-unit straight for strafe jumping, with a marker
 // every 512 units along the south wall.
 // North lane (y > 0): stairs (16-unit steps), ledges of 40 (a normal jump
-// reaches ~45) and 80 (needs a double jump, ~86), and a tunnel with the
-// ceiling 20 units above the head for double-jump practice.
-// Ramps and a jump pad come when mapc has sloped brushes and trigger brushes.
+// reaches ~45) and 80 (needs a double jump, ~86), a tunnel with the ceiling 20
+// units above the head for double-jump practice, a jump pad onto the ramp
+// platform, then a 20° ramp up to a platform at 180, a 35° ramp down, and a
+// separate 35° ramp up. Ramp-jump off either (cpm keeps the upward speed).
 {
   "name": "movement",
   "message": "Skaar Movement",
@@ -48,10 +49,29 @@
     { "min": [1024, 64, 0], "max": [1152, 320, 80], "material": "block" },
 
     // tunnel: ceiling at 76, 20 units above a standing player's head
-    { "min": [1408, 64, 76], "max": [1920, 704, 512], "material": "block" }
+    { "min": [1408, 64, 76], "max": [1920, 704, 512], "material": "block" },
+
+    // jump pad plate (the trigger is the entity below)
+    { "min": [1984, 512, 0], "max": [2112, 640, 4], "material": "block" },
+
+    // platform at 180 between the ramps
+    { "min": [2694, 64, 0], "max": [2900, 448, 180], "material": "block" },
+    // platform at the top of the second 35° ramp
+    { "min": [3557, 64, 0], "max": [3800, 448, 180], "material": "block" }
+  ],
+  // wedges: the slope rises from min.z to max.z toward "rise"
+  "ramps": [
+    { "min": [2200, 64, 0], "max": [2694, 448, 180], "rise": "+x", "material": "block" },   // 20°
+    { "min": [2900, 64, 0], "max": [3157, 448, 180], "rise": "-x", "material": "block" },   // 35° down
+    { "min": [3300, 64, 0], "max": [3557, 448, 180], "rise": "+x", "material": "block" }    // 35° up
   ],
   "entities": [
     { "classname": "info_player_deathmatch", "origin": [-384, -384, 40], "angle": 0 },
-    { "classname": "info_player_deathmatch", "origin": [-384, 384, 40], "angle": 0 }
+    { "classname": "info_player_deathmatch", "origin": [-384, 384, 40], "angle": 0 },
+
+    // jump pad: a trigger brush aimed at the apex of the flight
+    { "classname": "trigger_push", "target": "pad1",
+      "brushes": [{ "min": [1984, 512, 4], "max": [2112, 640, 36] }] },
+    { "classname": "target_position", "targetname": "pad1", "origin": [2800, 256, 360] }
   ]
 }

@@ -31,17 +31,19 @@ Constants, behavior and sources: `docs/cpm-physics.md`.
   - **Determinism**, JSON parsing and validation, registry, configstring round-trip, shipped files == built-ins.
   - Clean under UBSan (safe build).
 - [x] `data/maps-src/movement.json`: straight, stairs, 40/80 ledges, low-ceiling tunnel (boxes only).
-- [ ] Wiring (skaar-47 applies the patch): sgame/cgame call `skaar::move::Pmove`, `g_movement` cvar, configstring sync,
-  `bg_pmove.c`/`bg_slidemove.c` dropped from `modules.cmake`. Built, smoke-passed, and run with `g_movement cpm` on the
-  movement map in an isolated copy.
-- [ ] Scenario key `"player": {"ruleset": "cpm"}` (skaar-07, `scenario.{h,cpp}`).
+- [x] Wiring (skaar-47, 6ded8209): sgame/cgame call `skaar::move::Pmove`, `g_movement` cvar, configstring sync,
+  `bg_pmove.c`/`bg_slidemove.c` dropped from `modules.cmake`. Smoke PASS. In-game with `cg_showMiss 1`: walk, jump,
+  strafe-only air, double jump, and a live `g_movement vq3` switch give zero prediction misses.
+- [ ] Feel check by the human: hard strafe-only turns, forward-only steering, the 80-unit ledge by double jump.
+- [x] Scenario key `"player": {"ruleset": "cpm"}` (skaar-07, 2bb68cdb): the ui sets `g_movement` on Start;
+  `scenarios/air-track.json` uses cpm. `sk_start <id>` sets it too (f93a6e90).
 - [ ] Ramps (~20°, ~35°) and a jump pad in the movement map: needs sloped brushes and trigger brush entities in
   `tools/mapc` (skaar-47 OK'd skaar-31 editing mapc for this), plus trigger_push handling in sgame.
 - [ ] UI: pick the ruleset in the lobby (P2 screens, skaar-07). Final labels need the user's OK.
 
 ## How to run
 - Tests: `ctest --test-dir build-fast -R skaar_movetest`, or `tools/movetest/run.sh` (standalone).
-- In game (after wiring): `/set g_movement cpm`, then `/devmap movement`.
+- In game: `/set g_movement cpm`, then `/devmap movement`. Or play the "Air track" scenario.
 
 ## File claims (parallel sessions, see CLAUDE.md)
 - **skaar-31** (this plan, confirmed with skaar-47 2026-10-22): `docs/plan-P5.md`, `docs/cpm-physics.md`,

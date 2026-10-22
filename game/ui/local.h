@@ -45,7 +45,7 @@ constexpr float kValue = 28;      // mono: numbers in cells and tables
 constexpr float kLabel = 15;      // mono, uppercase: labels, eyebrows, hints
 }  // namespace type
 
-enum class Screen { kNone, kHome, kPlay, kInsights, kSettings, kInGame };
+enum class Screen { kNone, kHome, kPlay, kInsights, kSettings, kInGame, kEditor };
 enum class InsightsTab { kOverview, kScenarios, kRun, kBenchmarks };
 enum class SettingsTab { kAim, kCrosshair, kControls, kVideo, kAudio };
 
@@ -106,6 +106,7 @@ struct State {
     std::map<std::string, skaar::RunRecord> records;  // loaded run files, a few at a time
     std::string runError;
     std::map<std::string, float> scroll;  // per list
+    std::optional<skaar::Scenario> draft;  // the editor's working copy
 
     qhandle_t mark = 0, pointer = 0;
     sfxHandle_t move = 0, confirm = 0;  // focus moved / something activated
@@ -133,7 +134,8 @@ void EndFrame();
 void Marker(float x, float baseline, float cap);  // the sliding ember bar points here this frame
 void DrawMarker();
 void ResetMarker();                              // snap (no slide) on the next frame
-int TakeAdjust();                                // Left/Right nobody used: screens cycle their tabs with it
+int TakeAdjust();
+void SetRowHeight(float h);                      // settings-style rows (default 64)                                // Left/Right nobody used: screens cycle their tabs with it
 int Focusable(const Rect& r);          // registers a focus stop; returns its id
 bool Focused(int id);
 bool Activated(int id, const Rect& r);  // click on r, or Enter while focused
@@ -163,6 +165,10 @@ bool SliderRow(float y, const char* label, const char* cvar, float lo, float hi,
 bool ToggleRow(float y, const char* label, const char* cvar, const std::string& hint = "");
 bool ChoiceRow(float y, const char* label, const char* cvar, const std::vector<std::pair<std::string, std::string>>& choices,
                const std::string& hint = "");
+bool ValueSlider(float y, const char* label, float& value, float lo, float hi, float step, const char* format,
+                 const std::string& hint = "");
+bool ValueChoice(float y, const char* label, int& index, const std::vector<std::string>& choices,
+                 const std::string& hint = "");
 bool NumberRow(float y, const char* label, float value, float lo, float hi, const char* format, float& out,
                const std::string& hint = "");
 
@@ -172,6 +178,8 @@ void DrawPlay();
 void DrawInsights();
 void DrawSettings();
 void DrawInGame();
+void DrawEditor();
+void EditScenario(const std::string& id);
 void DrawConnect(bool overlay);
 
 // shared drawing for insights + play
