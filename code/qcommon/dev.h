@@ -24,7 +24,12 @@ typedef struct {
 typedef struct {
 	float	fps;			// frames counted over the last second
 	float	frameMsec;		// smoothed frame interval
+	float	frameP50;		// frame interval percentiles over the last second, msec
+	float	frameP99;
 	float	tickRate;		// server ticks counted over the last second (0 if no local server)
+	float	inputAgeMsec;	// newest mouse input -> end of the frame that used it (buffer swap), smoothed
+	float	inputAgeMaxMsec;	// worst over the last second
+	const char	*mouseSource;	// "raw (GCMouse)", "SDL (accelerated on macOS)", ...
 } devStats_t;
 
 void		Dev_Init( void );
@@ -41,6 +46,10 @@ const char	*Dev_RecentError( int maxAgeMsec );
 // Frame timing from Com_Frame, in microseconds. Logs "spike" lines.
 void		Dev_FrameEnd( int eventsUsec, int serverUsec, int clientUsec );
 void		Dev_SuppressSpikes( int frames );
+
+// Input timing: clock time (Dev_Microseconds) of the newest mouse motion used this frame
+void		Dev_NoteInput( long long usec );
+void		Dev_SetMouseSource( const char *source );
 
 // From SV_Frame: ticks run this frame and the backlog (msec) before running them
 void		Dev_ServerTicks( int ticksRun, int backlogMsec, int frameMsec );

@@ -117,14 +117,18 @@ static void CL_DevDrawErrorPanel( const char *error ) {
 static void CL_DevDrawOverlay( void ) {
 	devStats_t stats;
 	devNote_t notes[ 3 ];
-	char lines[ 8 ][ 128 ];
+	char lines[ 10 ][ 128 ];
 	int numLines = 0, n, i, widest = 0;
 	int cw = g_smallchar_width, lineH = g_smallchar_height + 2;
 	int x, y;
 
 	Dev_GetStats( &stats );
 
-	Com_sprintf( lines[ numLines++ ], sizeof( lines[0] ), "fps %4.0f   frame %5.2f ms", stats.fps, stats.frameMsec );
+	Com_sprintf( lines[ numLines++ ], sizeof( lines[0] ), "fps %4.0f   frame %5.2f ms  p99 %5.2f", stats.fps,
+		stats.frameP50, stats.frameP99 );
+	Com_sprintf( lines[ numLines++ ], sizeof( lines[0] ), "input->swap %4.1f ms (max %4.1f)", stats.inputAgeMsec,
+		stats.inputAgeMaxMsec );
+	Com_sprintf( lines[ numLines++ ], sizeof( lines[0] ), "mouse %s", stats.mouseSource );
 	if ( stats.tickRate > 0 ) {
 		Com_sprintf( lines[ numLines++ ], sizeof( lines[0] ), "tick %5.1f/s (sv_fps %s)", stats.tickRate, Cvar_VariableString( "sv_fps" ) );
 	} else {

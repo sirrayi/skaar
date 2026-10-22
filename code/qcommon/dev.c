@@ -14,6 +14,7 @@ This file is part of Skaar, a fork of ioquake3. GPLv2 or later.
 
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -50,6 +51,19 @@ static int			lastSpikeLogTime;
 static int			fpsWindowStart;
 static int			fpsWindowFrames;
 static float		fpsMeasured;
+
+// frame interval history for percentiles
+#define FRAME_RING 2048
+static int			frameRing[ FRAME_RING ];	// intervals, usec
+static int			frameRingHead;
+static int			frameRingCount;
+
+// input age
+static long long	pendingInputUsec;
+static float		inputAgeAvgUsec;
+static int			inputAgeMaxUsec, inputAgeMaxWindowUsec;
+static int			inputWindowStart;
+static char			mouseSource[ 64 ] = "SDL";
 
 // server ticks
 static int			tickWindowStart;
@@ -201,6 +215,29 @@ void Dev_FrameEnd( int eventsUsec, int serverUsec, int clientUsec ) {
 
 	lastFrameEndUsec = now;
 
+	frameRing[ frameRingHead ] = intervalUsec;
+	frameRingHead = ( frameRingHead + 1 ) % FRAME_RING;
+	if ( frameRingCount < FRAME_RING ) {
+		frameRingCount++;
+	}
+
+	// input age: newest mouse motion this frame used -> now (after the swap)
+	if ( pendingInputUsec ) {
+		int age = (int)( now - pendingInputUsec );
+		if ( age >= 0 && age < 1000000 ) {
+			inputAgeAvgUsec = inputAgeAvgUsec ? inputAgeAvgUsec + ( age - inputAgeAvgUsec ) * 0.1f : age;
+			if ( age > inputAgeMaxWindowUsec ) {
+				inputAgeMaxWindowUsec = age;
+			}
+		}
+		pendingInputUsec = 0;
+	}
+	if ( nowMsec - inputWindowStart >= 1000 ) {
+		inputAgeMaxUsec = inputAgeMaxWindowUsec;
+		inputAgeMaxWindowUsec = 0;
+		inputWindowStart = nowMsec;
+	}
+
 	// fps over a one second window
 	fpsWindowFrames++;
 	if ( nowMsec - fpsWindowStart >= 1000 ) {
@@ -261,9 +298,46 @@ void Dev_ServerTicks( int ticksRun, int backlogMsec, int frameMsec ) {
 	}
 }
 
+void Dev_NoteInput( long long usec ) {
+	if ( usec > pendingInputUsec ) {
+		pendingInputUsec = usec;
+	}
+}
+
+void Dev_SetMouseSource( const char *source ) {
+	Q_strncpyz( mouseSource, source, sizeof( mouseSource ) );
+}
+
+static int Dev_CompareInt( const void *a, const void *b ) {
+	return *(const int *)a - *(const int *)b;
+}
+
+// p50/p99 of the frame intervals covering the last second
+static void Dev_FramePercentiles( float *p50, float *p99 ) {
+	static int sorted[ FRAME_RING ];
+	int n = 0, total = 0;
+
+	while ( n < frameRingCount && total < 1000000 ) {
+		int v = frameRing[ ( frameRingHead - 1 - n + FRAME_RING ) % FRAME_RING ];
+		sorted[ n++ ] = v;
+		total += v;
+	}
+	if ( !n ) {
+		*p50 = *p99 = 0;
+		return;
+	}
+	qsort( sorted, n, sizeof( sorted[0] ), Dev_CompareInt );
+	*p50 = sorted[ n / 2 ] / 1000.0f;
+	*p99 = sorted[ ( n * 99 ) / 100 < n ? ( n * 99 ) / 100 : n - 1 ] / 1000.0f;
+}
+
 void Dev_GetStats( devStats_t *stats ) {
 	stats->fps = fpsMeasured;
 	stats->frameMsec = avgIntervalUsec / 1000.0f;
+	Dev_FramePercentiles( &stats->frameP50, &stats->frameP99 );
+	stats->inputAgeMsec = inputAgeAvgUsec / 1000.0f;
+	stats->inputAgeMaxMsec = inputAgeMaxUsec / 1000.0f;
+	stats->mouseSource = mouseSource;
 	// no ticks for two seconds means no local server is running
 	stats->tickRate = Sys_Milliseconds() - lastTickRunTime < 2000 ? tickRateMeasured : 0.0f;
 }
@@ -427,6 +501,15 @@ static void Dev_Reload_f( void ) {
 	}
 }
 
+static void Dev_Stats_f( void ) {
+	devStats_t stats;
+
+	Dev_GetStats( &stats );
+	Com_Printf( "dev_stats: fps %.1f, frame p50 %.2f ms, p99 %.2f ms, input->swap %.1f ms (max %.1f), tick %.1f/s, mouse %s\n",
+		stats.fps, stats.frameP50, stats.frameP99, stats.inputAgeMsec, stats.inputAgeMaxMsec, stats.tickRate,
+		stats.mouseSource );
+}
+
 static void Dev_Notes_f( void ) {
 	devNote_t list[ MAX_DEV_NOTES ];
 	int i, n = Dev_RecentNotes( list, MAX_DEV_NOTES, 0 );
@@ -454,6 +537,7 @@ void Dev_Init( void ) {
 
 	Cmd_AddCommand( "dev_reload", Dev_Reload_f );
 	Cmd_AddCommand( "dev_notes", Dev_Notes_f );
+	Cmd_AddCommand( "dev_stats", Dev_Stats_f );
 #ifdef SKAAR_DEV
 	Cmd_AddCommand( "dev_crash", Dev_Crash_f );
 #endif

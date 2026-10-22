@@ -3085,6 +3085,64 @@ int Com_TimeVal(int minMsec)
 
 /*
 =================
+Com_FpsCap
+
+skaar: the frame rate limit in effect for the client, 0 = uncapped
+=================
+*/
+static int Com_FpsCap( void ) {
+	if( com_minimized->integer && com_maxfpsMinimized->integer > 0 )
+		return com_maxfpsMinimized->integer;
+	if( com_unfocused->integer && com_maxfpsUnfocused->integer > 0 )
+		return com_maxfpsUnfocused->integer;
+	return com_maxfps->integer > 0 ? com_maxfps->integer : 0;
+}
+
+/*
+=================
+Com_PaceFrame
+
+skaar: wait until the next frame deadline with microsecond precision.
+Deadlines advance by exactly 1/fps, so the average rate is exact; if a frame
+overran by more than one interval we restart from now instead of bursting
+frames to catch up. Sleeps in whole milliseconds while more than ~1.5 ms
+remain (servicing the network like the stock loop), then spins the rest
+(com_busyWait 1 spins the whole time).
+=================
+*/
+static void Com_PaceFrame( int fps ) {
+	static long long nextFrameUsec;
+	static int lastFps;
+	long long interval = 1000000LL / fps;
+	long long now = Dev_Microseconds();
+
+	if( fps != lastFps || !nextFrameUsec || now - nextFrameUsec > interval )
+		nextFrameUsec = now;
+	lastFps = fps;
+
+	for( ;; )
+	{
+		long long remaining = nextFrameUsec - Dev_Microseconds();
+		int sleepMsec;
+
+		if( remaining <= 0 )
+			break;
+
+		sleepMsec = com_busyWait->integer ? 0 : (int)( ( remaining - 1500 ) / 1000 );
+		if( com_sv_running->integer )
+		{
+			int svMsec = SV_SendQueuedPackets();
+			if( svMsec < sleepMsec )
+				sleepMsec = svMsec;
+		}
+		NET_Sleep( sleepMsec > 0 ? sleepMsec : 0 );	// 0 polls the network without blocking
+	}
+
+	nextFrameUsec += interval;
+}
+
+/*
+=================
 Com_Frame
 =================
 */
@@ -3123,8 +3181,15 @@ void Com_Frame( void ) {
 		timeBeforeFirstEvents = Sys_Milliseconds ();
 	}
 
+	// skaar: capped client frame rates are paced in microseconds (see
+	// Com_PaceFrame); the millisecond loop below can only hit 1000/n fps
+	if( !com_timedemo->integer && !com_dedicated->integer && Com_FpsCap() > 0 )
+	{
+		Com_PaceFrame( Com_FpsCap() );
+		minMsec = 0;
+	}
 	// Figure out how much time we have
-	if(!com_timedemo->integer)
+	else if(!com_timedemo->integer)
 	{
 		if(com_dedicated->integer)
 			minMsec = SV_FrameMsec();
@@ -3155,6 +3220,9 @@ void Com_Frame( void ) {
 
 	do
 	{
+		if(!minMsec)
+			break;	// already paced by Com_PaceFrame
+
 		if(com_sv_running->integer)
 		{
 			timeValSV = SV_SendQueuedPackets();

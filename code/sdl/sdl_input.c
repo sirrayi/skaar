@@ -32,6 +32,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../client/client.h"
 #include "../sys/sys_local.h"
+#include "../qcommon/dev.h"
+#ifdef __APPLE__
+#include "../sys/sys_rawmouse.h"
+#define USE_RAW_MOUSE	// skaar: SDL 2's macOS relative motion is accelerated
+#endif
 
 #if !SDL_VERSION_ATLEAST(2, 0, 17)
 #define KMOD_SCROLL KMOD_RESERVED
@@ -47,6 +52,7 @@ static qboolean mouseActive = qfalse;
 
 static cvar_t *in_mouse             = NULL;
 static cvar_t *in_nograb;
+static cvar_t *in_rawMouse;	// skaar: raw (unaccelerated) motion where SDL lacks it
 
 static cvar_t *in_joystick          = NULL;
 static cvar_t *in_joystickThreshold = NULL;
@@ -342,6 +348,53 @@ static void IN_GobbleMotionEvents( void )
 
 /*
 ===============
+IN_RawMouseInUse
+
+skaar: true when mouse motion comes from the raw path instead of SDL
+===============
+*/
+static qboolean IN_RawMouseInUse( void )
+{
+#ifdef USE_RAW_MOUSE
+	return in_rawMouse && in_rawMouse->integer && RawMouse_Active( );
+#else
+	return qfalse;
+#endif
+}
+
+/*
+===============
+IN_ReportMouseSource
+
+skaar: log (once per change) where mouse motion comes from; warn when it's
+accelerated, since that breaks cm/360
+===============
+*/
+static void IN_ReportMouseSource( void )
+{
+	static int reported = -1;
+	int raw = IN_RawMouseInUse( );
+
+	if( raw == reported )
+		return;
+	reported = raw;
+
+	if( raw ) {
+		Dev_SetMouseSource( "raw (GCMouse)" );
+		Com_Printf( "mouse: raw input (GCMouse), no OS acceleration\n" );
+	} else {
+#ifdef __APPLE__
+		Dev_SetMouseSource( "SDL (macOS accel)" );
+		Com_Printf( S_COLOR_YELLOW "WARNING: mouse input includes macOS pointer acceleration (%s); cm/360 won't be exact\n",
+			in_rawMouse && in_rawMouse->integer ? RawMouse_Description( ) : "in_rawMouse 0" );
+#else
+		Dev_SetMouseSource( "SDL relative (raw)" );
+#endif
+	}
+}
+
+/*
+===============
 IN_ActivateMouse
 ===============
 */
@@ -356,6 +409,9 @@ static void IN_ActivateMouse( qboolean isFullscreen )
 		SDL_SetWindowGrab( SDL_window, SDL_TRUE );
 
 		IN_GobbleMotionEvents( );
+#ifdef USE_RAW_MOUSE
+		RawMouse_SetCapture( qtrue );
+#endif
 	}
 
 	// in_nograb makes no sense in fullscreen mode
@@ -399,6 +455,9 @@ static void IN_DeactivateMouse( qboolean isFullscreen )
 	if( mouseActive )
 	{
 		IN_GobbleMotionEvents( );
+#ifdef USE_RAW_MOUSE
+		RawMouse_SetCapture( qfalse );
+#endif
 
 		SDL_SetWindowGrab( SDL_window, SDL_FALSE );
 		SDL_SetRelativeMouseMode( SDL_FALSE );
@@ -1118,10 +1177,12 @@ static void IN_ProcessEvents( void )
 				break;
 
 			case SDL_MOUSEMOTION:
-				if( mouseActive )
+				// skaar: while raw input is in use, motion comes from IN_RawMouseMove instead
+				if( mouseActive && !IN_RawMouseInUse( ) )
 				{
 					if( !e.motion.xrel && !e.motion.yrel )
 						break;
+					Dev_NoteInput( Dev_Microseconds( ) );
 					Com_QueueEvent( in_eventTime, SE_MOUSE, e.motion.xrel, e.motion.yrel, 0, NULL );
 				}
 				break;
@@ -1278,6 +1339,24 @@ void IN_Frame( void )
 
 	IN_ProcessEvents( );
 
+#ifdef USE_RAW_MOUSE
+	// skaar: raw motion accumulated since the last frame, as one mouse event
+	IN_ReportMouseSource( );
+	if( mouseActive && IN_RawMouseInUse( ) )
+	{
+		int dx, dy;
+		long long newest;
+
+		RawMouse_Consume( &dx, &dy, &newest );
+		if( dx || dy ) {
+			Com_QueueEvent( in_eventTime, SE_MOUSE, dx, dy, 0, NULL );
+			Dev_NoteInput( newest );
+		}
+	}
+#else
+	IN_ReportMouseSource( );
+#endif
+
 	// Set event time for next frame to earliest possible time an event could happen
 	in_eventTime = Sys_Milliseconds( );
 
@@ -1324,6 +1403,13 @@ void IN_Init( void *windowData )
 	SDL_StartTextInput( );
 
 	mouseAvailable = ( in_mouse->value != 0 );
+
+	in_rawMouse = Cvar_Get( "in_rawMouse", "1", CVAR_ARCHIVE | CVAR_LATCH );
+	Cvar_SetDescription( in_rawMouse, "Raw, unaccelerated mouse motion where SDL lacks it (macOS 14+, GCMouse); restart input to apply" );
+#ifdef USE_RAW_MOUSE
+	if( in_rawMouse->integer && !RawMouse_Init( ) )
+		Com_Printf( "mouse: raw input %s\n", RawMouse_Description( ) );
+#endif
 	IN_DeactivateMouse( Cvar_VariableIntegerValue( "r_fullscreen" ) != 0 );
 
 	appState = SDL_GetWindowFlags( SDL_window );
@@ -1345,6 +1431,9 @@ void IN_Shutdown( void )
 
 	IN_DeactivateMouse( Cvar_VariableIntegerValue( "r_fullscreen" ) != 0 );
 	mouseAvailable = qfalse;
+#ifdef USE_RAW_MOUSE
+	RawMouse_Shutdown( );
+#endif
 
 	IN_ShutdownJoystick( );
 
