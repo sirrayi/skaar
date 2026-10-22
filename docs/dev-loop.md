@@ -55,7 +55,7 @@ Send your own: `printf 'dev_overlay 1\n' > .home/base/dev.pipe`.
 ## In-game diagnostics (engine side, works without any game module)
 | Feature | How to see it |
 |---|---|
-| Toasts | Any WARNING / ERROR / ASSERT line shows in the top-left for 5 s (below the console notify lines). `dev_toasts 0` hides them. |
+| Toasts | Any WARNING / ERROR / ASSERT line shows small in the bottom-right for 5 s (newest 3, newest at the bottom). `dev_toasts 0` hides them. |
 | Error panel | After an `ERR_DROP`: full-screen red panel with the message and the session log path, for 10 s or until the next map loads. |
 | Fatal errors | Native dialog with the message, crash report path and session log path. `dev_errorDialog 0` suppresses it (headless runs). |
 | `dev_overlay 1` | Corner panel: fps, frame time, server tick rate, ping, entity count, last 3 warnings. |

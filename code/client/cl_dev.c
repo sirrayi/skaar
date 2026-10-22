@@ -2,7 +2,7 @@
 ===========================================================================
 Skaar developer overlay (client side), drawn by the engine so it works even
 when a game module fails to load:
-  - toasts: warnings/errors/asserts in the top-left for 5 seconds
+  - toasts: warnings/errors/asserts, small, in the bottom-right for 5 seconds
   - error panel: full-screen message after an ERR_DROP, with the log path
   - dev_overlay 1: FPS, frame time, tick rate, ping, entities, last warnings
   - sens_test: measure mouse counts per 360 to verify cm/360
@@ -15,7 +15,8 @@ This file is part of Skaar, a fork of ioquake3. GPLv2 or later.
 
 #define TOAST_MSEC			5000
 #define TOAST_FADE_MSEC		500
-#define MAX_TOASTS			6
+#define MAX_TOASTS			3
+#define TOAST_SCALE			0.65f	// of the console's small char
 #define ERROR_PANEL_MSEC	10000
 
 static cvar_t	*dev_overlay;
@@ -63,29 +64,53 @@ static void CL_DevClip( const char *text, int maxChars, char *out, int outSize )
 	}
 }
 
+// Console charset text at any cell size (the small-char helpers are fixed size)
+static void CL_DevTextSized( float x, float y, float cw, float ch, const char *text, const float *color, float alpha ) {
+	vec4_t c;
+
+	Vector4Copy( color, c );
+	c[3] *= alpha;
+	re.SetColor( c );
+	for ( ; *text; text++, x += cw ) {
+		int code = *text & 255;
+
+		if ( code == ' ' ) {
+			continue;
+		}
+		re.DrawStretchPic( x, y, cw, ch, ( code & 15 ) * 0.0625f, ( code >> 4 ) * 0.0625f,
+			( code & 15 ) * 0.0625f + 0.0625f, ( code >> 4 ) * 0.0625f + 0.0625f, cls.charSetShader );
+	}
+	re.SetColor( NULL );
+}
+
+// Small and out of the way in the bottom-right corner, newest at the bottom,
+// so they never cover menus or the HUD; the full text is in the log
 static void CL_DevDrawToasts( void ) {
 	devNote_t notes[ MAX_TOASTS ];
 	int now = Sys_Milliseconds();
 	int n = Dev_RecentNotes( notes, MAX_TOASTS, TOAST_MSEC );
-	int lineH = g_smallchar_height + 4;
-	int maxChars = cls.glconfig.vidWidth / 2 / g_smallchar_width;
-	// start below the console notify lines, which share the top-left corner
-	int top = 8 + Cvar_VariableIntegerValue( "con_notifylines" ) * g_smallchar_height + 8;
+	float cw = g_smallchar_width * TOAST_SCALE, ch = g_smallchar_height * TOAST_SCALE;
+	float lineH = ch + 6 * TOAST_SCALE, pad = cw;
+	float margin = g_smallchar_width;
+	int maxChars = (int)( cls.glconfig.vidWidth / 3 / cw );
 	int i;
 
 	for ( i = 0; i < n; i++ ) {
 		char line[ 192 ];
 		int age = now - notes[ i ].time;
 		float alpha = age > TOAST_MSEC - TOAST_FADE_MSEC ? ( TOAST_MSEC - age ) / (float)TOAST_FADE_MSEC : 1.0f;
-		int y = top + i * lineH;
+		float y = cls.glconfig.vidHeight - margin - ( n - i ) * ( lineH + 2 );
+		float w, x;
 		vec4_t bg;
 
 		CL_DevClip( notes[ i ].text, maxChars, line, sizeof( line ) );
+		w = strlen( line ) * cw + 2 * pad;
+		x = cls.glconfig.vidWidth - margin - w;
 
 		Vector4Copy( colorPanel, bg );
 		bg[3] *= alpha;
-		CL_DevFill( 4, y - 2, ( strlen( line ) + 2 ) * g_smallchar_width, lineH, bg );
-		CL_DevText( 4 + g_smallchar_width, y,
+		CL_DevFill( x, y, w, lineH, bg );
+		CL_DevTextSized( x + pad, y + ( lineH - ch ) / 2, cw, ch,
 			line, notes[ i ].level == DEV_NOTE_ERROR ? colorErrorText : colorWarnText, alpha );
 	}
 }
@@ -258,7 +283,7 @@ void CL_DevInit( void ) {
 	dev_overlay = Cvar_Get( "dev_overlay", "0", CVAR_ARCHIVE );
 	Cvar_SetDescription( dev_overlay, "Corner panel: FPS, frame time, tick rate, ping, entities, last warnings" );
 	dev_toasts = Cvar_Get( "dev_toasts", "1", CVAR_ARCHIVE );
-	Cvar_SetDescription( dev_toasts, "Show warnings and errors as toasts in the top-left for 5 seconds" );
+	Cvar_SetDescription( dev_toasts, "Show warnings and errors as small toasts in the bottom-right for 5 seconds" );
 	sens_dpi = Cvar_Get( "sens_dpi", "0", CVAR_ARCHIVE );
 	Cvar_SetDescription( sens_dpi, "Mouse DPI, used by sens_test to report cm/360" );
 
