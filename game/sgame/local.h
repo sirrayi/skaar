@@ -1,0 +1,77 @@
+// Server game state.
+//
+// This file is part of Skaar. GPLv2 or later.
+#pragma once
+
+#include <array>
+#include <string>
+#include <vector>
+
+#include "syscalls.h"
+
+namespace sg {
+
+struct gclient_t;
+
+// The engine reads the leading entityState_t + entityShared_t of every
+// entity (sharedEntity_t), so those two must stay first and in this order.
+struct gentity_t {
+    entityState_t s;
+    entityShared_t r;
+
+    gclient_t* client;
+    bool inuse;
+    const char* classname;
+};
+
+// Likewise the engine reads playerState_t at the start of each client.
+struct gclient_t {
+    playerState_t ps;
+
+    bool connected;
+    bool spawned;
+    bool noclip;
+    bool frozen;    // sk_freeze: position locked, view still turns (static scenarios)
+    usercmd_t cmd;  // last command, for view angle deltas on spawn
+    char name[36];
+};
+
+struct SpawnPoint {
+    vec3_t origin;
+    vec3_t angles;
+};
+
+struct Level {
+    int time;
+    int previousTime;
+    int startTime;
+    int numEntities;  // highest used entity number + 1
+    std::string mapname;
+    std::vector<SpawnPoint> spawns;
+    size_t nextSpawn;
+};
+
+struct Cvars {
+    vmCvar_t speed, gravity, pmoveFixed, pmoveMsec, cheats;
+};
+
+extern std::array<gentity_t, MAX_GENTITIES> g_entities;
+extern std::array<gclient_t, MAX_CLIENTS> g_clients;
+extern Level level;
+extern Cvars cvars;
+
+// spawn.cpp
+void SpawnEntitiesFromString();
+
+// clients.cpp
+const char* ClientConnect(int clientNum, bool firstTime, bool isBot);
+void ClientBegin(int clientNum);
+void ClientUserinfoChanged(int clientNum);
+void ClientDisconnect(int clientNum);
+void ClientCommand(int clientNum);
+void ClientThink(int clientNum);
+
+// main.cpp
+void LinkGameData();
+
+}  // namespace sg

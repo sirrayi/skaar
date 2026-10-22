@@ -1,0 +1,90 @@
+// This file is part of Skaar. GPLv2 or later.
+#include "syscalls.h"
+
+#include <cstdlib>
+#include <string>
+
+namespace {
+intptr_t(QDECL* g_syscall)(intptr_t arg, ...) = nullptr;
+}
+
+SKAAR_MODULE_EXPORT void dllEntry(intptr_t(QDECL* syscallptr)(intptr_t arg, ...)) { g_syscall = syscallptr; }
+
+// bg_misc.c (C) calls this directly
+extern "C" void trap_Cvar_VariableStringBuffer(const char* name, char* buffer, int size) {
+    g_syscall(G_CVAR_VARIABLE_STRING_BUFFER, name, buffer, size);
+}
+
+extern "C" void trap_SnapVector(float* v) { g_syscall(G_SNAPVECTOR, v); }
+
+namespace sg::trap {
+
+void Print(const char* text) { g_syscall(G_PRINT, text); }
+
+void Error(const char* text) {
+    g_syscall(G_ERROR, text);
+    std::abort();  // G_ERROR longjmps out of the module; never reached
+}
+
+int Milliseconds() { return static_cast<int>(g_syscall(G_MILLISECONDS)); }
+int Argc() { return static_cast<int>(g_syscall(G_ARGC)); }
+
+std::string Argv(int n) {
+    char buf[MAX_STRING_CHARS];
+    g_syscall(G_ARGV, n, buf, sizeof(buf));
+    return buf;
+}
+
+void SendConsoleCommand(int when, const char* text) { g_syscall(G_SEND_CONSOLE_COMMAND, when, text); }
+
+void CvarRegister(vmCvar_t* cvar, const char* name, const char* value, int flags) {
+    g_syscall(G_CVAR_REGISTER, cvar, name, value, flags);
+}
+
+void CvarUpdate(vmCvar_t* cvar) { g_syscall(G_CVAR_UPDATE, cvar); }
+void CvarSet(const char* name, const char* value) { g_syscall(G_CVAR_SET, name, value); }
+int CvarInt(const char* name) { return static_cast<int>(g_syscall(G_CVAR_VARIABLE_INTEGER_VALUE, name)); }
+
+void LocateGameData(gentity_t* ents, int numEnts, int entSize, playerState_t* clients, int clientSize) {
+    g_syscall(G_LOCATE_GAME_DATA, ents, numEnts, entSize, clients, clientSize);
+}
+
+void DropClient(int clientNum, const char* reason) { g_syscall(G_DROP_CLIENT, clientNum, reason); }
+void SendServerCommand(int clientNum, const char* text) { g_syscall(G_SEND_SERVER_COMMAND, clientNum, text); }
+void SetConfigstring(int num, const char* value) { g_syscall(G_SET_CONFIGSTRING, num, value); }
+
+std::string GetUserinfo(int clientNum) {
+    char buf[MAX_INFO_STRING];
+    g_syscall(G_GET_USERINFO, clientNum, buf, sizeof(buf));
+    return buf;
+}
+
+void LinkEntity(gentity_t* ent) { g_syscall(G_LINKENTITY, ent); }
+void UnlinkEntity(gentity_t* ent) { g_syscall(G_UNLINKENTITY, ent); }
+
+void Trace(trace_t* results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,
+           int passEntityNum, int contentmask) {
+    g_syscall(G_TRACE, results, start, mins, maxs, end, passEntityNum, contentmask);
+}
+
+int PointContents(const vec3_t point, int passEntityNum) {
+    return static_cast<int>(g_syscall(G_POINT_CONTENTS, point, passEntityNum));
+}
+
+void GetUsercmd(int clientNum, usercmd_t* cmd) { g_syscall(G_GET_USERCMD, clientNum, cmd); }
+
+bool GetEntityToken(char* buffer, int size) { return g_syscall(G_GET_ENTITY_TOKEN, buffer, size) != 0; }
+
+bool FileRead(const char* path, std::string& out) {
+    fileHandle_t f;
+    const int len = static_cast<int>(g_syscall(G_FS_FOPEN_FILE, path, &f, FS_READ));
+    if (len < 0 || !f) {
+        return false;
+    }
+    out.resize(len);
+    g_syscall(G_FS_READ, out.data(), len, f);
+    g_syscall(G_FS_FCLOSE_FILE, f);
+    return true;
+}
+
+}  // namespace sg::trap

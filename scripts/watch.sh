@@ -16,7 +16,7 @@ ALL=0
 mkdir -p "$LOGS"
 [ -e "$LOGS/latest.log" ] || : > "$LOGS/latest.log"
 
-printf '%swatching %s (Ctrl+C to stop)%s\n' "$C_DIM" "$LOGS/latest.log" "$C_OFF"
+[ -n "${WATCH_NO_HEADER:-}" ] || printf '%swatching %s (Ctrl+C to stop)%s\n' "$C_DIM" "$LOGS/latest.log" "$C_OFF"
 
 # tail -F follows the latest.log symlink when dev.sh points it at a new session
 tail -n 0 -F "$LOGS/latest.log" 2>/dev/null | awk -v all="$ALL" \

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Launch the client for testing.  ./scripts/dev.sh [fast|safe] [engine args...]
+# Launch the client for testing.  ./scripts/dev.sh [fast|safe] [--menu] [engine args...]
 #
 # - dev cvars: developer 1, logfile 2 (flushed qconsole.log), com_hunkMegs 256,
 #   com_pipefile (lets dev-watch.sh send commands), dev_logdir/dev_logpath
@@ -7,12 +7,15 @@
 # - runs under lldb (macOS) / gdb (Linux) in batch mode: a crash prints a full
 #   backtrace into the log, then the engine's own handler writes logs/crash-*.txt.
 #   DEV_DEBUGGER=none runs without a debugger.
-# - with no +map/+devmap argument, reloads the map from logs/last-session.cfg
+# - with no +map/+devmap argument, reloads the map from logs/last-session.cfg;
+#   --menu starts at the main menu instead
 set -eu
 . "$(dirname -- "$0")/lib.sh"
 
 CONFIG=fast
 case "${1:-}" in fast|safe) CONFIG=$1; shift ;; esac
+MENU=0
+[ "${1:-}" = --menu ] && { MENU=1; shift; }
 
 BIN=$(client_bin "$CONFIG")
 [ -x "$BIN" ] || die "no $CONFIG build at $BIN; run ./scripts/build.sh $CONFIG"
@@ -23,15 +26,16 @@ LOG="$LOGS/session-$STAMP.log"
 : > "$LOG"
 ln -sf "session-$STAMP.log" "$LOGS/latest.log"
 
+MAPARGS=
 case " $* " in
-    *" +map "*|*" +devmap "*) MAPARGS= ;;
+    *" +map "*|*" +devmap "*) ;;
     *)
-        if [ -f "$LOGS/last-session.cfg" ]; then
+        if [ "$MENU" = 1 ]; then
+            :
+        elif [ -f "$LOGS/last-session.cfg" ]; then
             MAPARGS=$(sed -e '/^[[:space:]]*$/d' -e 's/^/+/' "$LOGS/last-session.cfg" | tr '\n' ' ')
         elif [ -f "$(out_dir "$CONFIG")/base/generated.pk3dir/maps/testroom.bsp" ]; then
             MAPARGS="+devmap testroom"
-        else
-            MAPARGS=
         fi
         ;;
 esac

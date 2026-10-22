@@ -24,4 +24,4 @@ Licenses are compatible with GPLv2. See each directory.
 | fswatch | file watching for `scripts/dev-watch.sh` |
 | lldb (macOS) / gdb (Linux) | crash backtraces in `scripts/dev.sh` |
 | perl | millisecond timing in dev-watch status lines (falls back to seconds without it) |
-| Python 3 + Pillow | only for regenerating placeholder assets (`tools/gen_placeholder_assets.py`) |
+| Python 3 + Pillow | only for regenerating placeholder assets (`tools/gen_assets.py`) |
