@@ -44,6 +44,7 @@ void CalcViewValues() {
     }
 
     trainer::OverrideView(rd.vieworg, cg.viewAngles);  // replays drive the camera
+    weapons::ViewOffset(rd.vieworg, cg.viewAngles);     // tac recoil: camera punch only (skaar-07)
     AnglesToAxis(cg.viewAngles, rd.viewaxis);
     std::memcpy(rd.areamask, cg.snap->areamask, sizeof(rd.areamask));
     CalcFov();

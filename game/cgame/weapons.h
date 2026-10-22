@@ -30,6 +30,10 @@ void PlayerEvent(int event, int eventParm, const playerState_t& ps);
 // Each frame after the world, next to trainer::DrawHud.
 void DrawHud();
 
+// Tac recoil: offsets the camera by the spray (cameraFollow share), easing back
+// after a pause. Camera only: commands and bullets are unaffected.
+void ViewOffset(vec3_t origin, vec3_t angles);
+
 // True while the local player has an arena loadout (any weapon): the arena HUD
 // is up, so the base HUD keeps the bottom of the screen clear.
 bool HudActive();

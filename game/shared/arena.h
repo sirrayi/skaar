@@ -30,6 +30,8 @@ inline constexpr ItemDef kItems[] = {
     {"weapon_rocketlauncher", ItemType::kWeapon, 5, 0, 0, 5000},
     {"weapon_lightning", ItemType::kWeapon, 6, 0, 0, 5000},
     {"weapon_railgun", ItemType::kWeapon, 7, 0, 0, 5000},
+    {"weapon_rifle", ItemType::kWeapon, 2, 0, 0, 5000},
+    {"weapon_handcannon", ItemType::kWeapon, 8, 0, 0, 5000},
     {"ammo_shells", ItemType::kAmmo, 3, 0, 0, 40000},
     {"ammo_rockets", ItemType::kAmmo, 5, 0, 0, 40000},
     {"ammo_lightning", ItemType::kAmmo, 6, 0, 0, 40000},
@@ -55,6 +57,13 @@ inline int FindItem(const char* classname) {
 
 // Practice dummies: entityState_t.modelindex = pattern, time2 = health
 enum class DummyPattern { kStand = 0, kStrafe = 1, kStrafeJump = 2, kCircle = 3 };
+
+// playerState stats owned by tac weapons (P7); 0-6 are Q3's, 14/15 movement's.
+// Sent as signed 16-bit, so times are command time modulo 32768.
+constexpr int kStatSpray = 8;      // shot index in the current spray
+constexpr int kStatLastShot = 9;   // command time of the last shot, & 0x7fff
+constexpr int kStatReloading = 10; // 1 while a reload runs (ps.weaponTime holds the time left)
+constexpr int kStatReserve = 11;   // reserve rounds for the held weapon (-1: infinite)
 
 constexpr int kMaxHealth = 100;   // spawn health; health and armor pickups go to 200
 constexpr int kRespawnMs = 1500;  // after a death

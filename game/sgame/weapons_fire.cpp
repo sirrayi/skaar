@@ -4,6 +4,7 @@
 // definitions (game/shared/weapons.h).
 //
 // This file is part of Skaar. GPLv2 or later.
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -136,6 +137,58 @@ void FireBeam(gentity_t* player, const skaar::WeaponDef& w, const vec3_t muzzle,
     Damage(hit, player, player, forward, tr.endpos, static_cast<int>(w.damage), 0, ModFor(w, false));
 }
 
+// Tac hitscan: the spray pattern and a movement-dependent cone, deterministic
+// from the command time and shot index (the client can rebuild every shot),
+// damage with head zones and falloff
+void FireTac(gentity_t* player, playerState_t& ps, const skaar::WeaponDef& w) {
+    namespace arena = skaar::arena;
+    const int now = ps.commandTime;
+    const int since = (now - ps.stats[arena::kStatLastShot]) & 0x7fff;
+    const bool reset = ps.stats[arena::kStatSpray] == 0 || since > w.recoilRecoverMs;
+    const int index = reset ? 0 : ps.stats[arena::kStatSpray];
+
+    float up, right;
+    skaar::SprayOffset(w, index, up, right);
+    const float speed = std::hypot(ps.velocity[0], ps.velocity[1]);
+    const bool onGround = ps.groundEntityNum != ENTITYNUM_NONE;
+    const float cone = skaar::Inaccuracy(w, index == 0, speed, onGround, ps.pm_flags & PMF_DUCKED);
+    float su, sr;
+    skaar::SpreadSample(cone, now * 31 + index * 7919 + player->s.number, su, sr);
+
+    vec3_t angles, dir, eye, end;
+    VectorCopy(ps.viewangles, angles);
+    angles[PITCH] -= up + su;  // q3 pitch grows downward
+    angles[YAW] -= right + sr;  // and yaw to the left
+    AngleVectors(angles, dir, nullptr, nullptr);
+    VectorCopy(ps.origin, eye);
+    eye[2] += ps.viewheight;
+    VectorMA(eye, w.range, dir, end);
+
+    trace_t tr;
+    trap::Trace(&tr, eye, nullptr, nullptr, end, player->s.number, MASK_SHOT);
+    if (tr.entityNum < ENTITYNUM_MAX_NORMAL) {
+        gentity_t* hit = &g_entities[tr.entityNum];
+        if (Damageable(hit)) {
+            CountHit(player, w.slot, hit);
+            const bool head = tr.endpos[2] >= hit->r.absmax[2] - 12;
+            const float dist = Distance(eye, tr.endpos);
+            const float damage = w.damage * skaar::FalloffScale(w, dist) * (head ? w.headMultiplier : 1.0f);
+            Damage(hit, player, player, dir, tr.endpos, static_cast<int>(damage + 0.5f), 0, MOD_MACHINEGUN);
+        }
+    }
+    // a tracer from just below the eye to the impact
+    vec3_t muzzle;
+    VectorMA(eye, 14, dir, muzzle);
+    muzzle[2] -= 4;
+    gentity_t* tent = TempEvent(muzzle, EV_RAILTRAIL, DirToByte(tr.plane.normal));
+    VectorCopy(tr.endpos, tent->s.origin2);
+    tent->s.clientNum = player->s.number;
+    tent->s.weapon = w.slot;
+
+    ps.stats[arena::kStatSpray] = std::min(index + 1, 32000);
+    ps.stats[arena::kStatLastShot] = now & 0x7fff;
+}
+
 void FireProjectile(gentity_t* player, const skaar::WeaponDef& w, const vec3_t muzzle, const vec3_t forward) {
     gentity_t* m = Spawn();
     m->classname = "missile";
@@ -211,6 +264,10 @@ void FireWeapon(gentity_t* player, playerState_t& ps) {
         return;
     }
     clients[player->s.number].shots[w->slot]++;
+    if (w->magazine > 0 || !w->recoil.empty() || w->inaccuracy > 0 || w->firstShotSpread > 0) {
+        FireTac(player, ps, *w);
+        return;
+    }
     vec3_t muzzle, forward, right, up;
     Muzzle(ps, muzzle, forward, right, up);
     switch (w->type) {
@@ -227,6 +284,48 @@ void FireWeapon(gentity_t* player, playerState_t& ps) {
             FireProjectile(player, *w, muzzle, forward);
             break;
     }
+}
+
+bool StartReload(playerState_t& ps) {
+    namespace arena = skaar::arena;
+    const skaar::WeaponDef* w = skaar::WeaponBySlot(ps.weapon);
+    if (!w || w->magazine <= 0 || ps.stats[arena::kStatReloading] || ps.ammo[ps.weapon] >= w->magazine) {
+        return false;
+    }
+    int& reserve = clients[ps.clientNum].reserve[ps.weapon];
+    const bool infinite = mcv.infiniteAmmo.integer != 0;
+    const int take = infinite ? w->magazine - ps.ammo[ps.weapon] : std::min(w->magazine - ps.ammo[ps.weapon], reserve);
+    if (take <= 0) {
+        return false;
+    }
+    // the rounds move now; weaponTime keeps the gun from firing until the reload is over
+    ps.ammo[ps.weapon] += take;
+    if (!infinite) {
+        reserve -= take;
+    }
+    ps.weaponTime = std::max(ps.weaponTime, w->reloadMs);
+    ps.weaponstate = WEAPON_READY;
+    ps.stats[arena::kStatReloading] = 1;
+    ps.stats[arena::kStatSpray] = 0;
+    return true;
+}
+
+void TacThink(playerState_t& ps) {
+    namespace arena = skaar::arena;
+    const skaar::WeaponDef* w = skaar::WeaponBySlot(ps.weapon);
+    if (!w || w->magazine <= 0) {
+        ps.stats[arena::kStatReloading] = 0;
+        ps.stats[arena::kStatReserve] = 0;
+        return;
+    }
+    if (ps.stats[arena::kStatReloading] && ps.weaponTime <= 0) {
+        ps.stats[arena::kStatReloading] = 0;
+    }
+    if (!ps.stats[arena::kStatReloading] && ps.ammo[ps.weapon] == 0) {
+        StartReload(ps);  // empty: reload by itself
+    }
+    ps.stats[arena::kStatReserve] =
+        mcv.infiniteAmmo.integer ? -1 : std::min(clients[ps.clientNum].reserve[ps.weapon], 32000);
 }
 
 void RunMissile(gentity_t* m) {

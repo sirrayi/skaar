@@ -30,7 +30,7 @@ void Items(float top, const std::vector<Item>& items, float a) {
     lastTime = ui.realtime;
 
     const kit::Fonts& f = kit::GetFonts();
-    const float m = theme::kMargin, step = 84;
+    const float m = theme::kMargin, step = 68;
     const float cap = f.text.CapHeight(type::kItem);
 
     for (size_t i = 0; i < items.size() && i < 16; i++) {
@@ -77,13 +77,18 @@ void DrawHome() {
 
     std::vector<Item> items = {
         {"Play", [] { Open(Screen::kPlay); }},
-        {"Insights", [] { Open(Screen::kInsights); }},
-        {"Settings", [] { Open(Screen::kSettings); }},
         {"Arena", [] {
              // duel practice: weapons, items, dummies (docs/plan-P6.md)
              Exec("set sk_scenario \"\"; map duel\n");
              Close();
          }},
+        {"Tac range", [] {
+             // rifle and hand cannon on the tac range (docs/plan-P7.md)
+             Exec("set sk_scenario \"\"; map tacrange\n");
+             Close();
+         }},
+        {"Insights", [] { Open(Screen::kInsights); }},
+        {"Settings", [] { Open(Screen::kSettings); }},
         {"Free roam", [] {
              Exec("set sk_scenario \"\"; devmap testroom\n");
              Close();
@@ -93,7 +98,7 @@ void DrawHome() {
     if (InGame()) {
         items.insert(items.begin(), Item{"Resume", [] { Close(); }});
     }
-    Items(450, items, a);
+    Items(420, items, a);
 
     // one quiet line of standing, if there is any
     const auto& o = data.overview;

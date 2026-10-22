@@ -5,6 +5,8 @@
 #pragma once
 
 #include <array>
+#include <string>
+#include <vector>
 
 #include "local.h"
 #include "mode.h"
@@ -52,6 +54,7 @@ struct ClientState {
     int damageTaken = 0;
     int kills = 0;
     int deaths = 0;
+    std::array<int, 16> reserve{};  // tac weapons: rounds outside the magazine, per slot
     bool inSession = false;  // spawned on an arena map; written to stats/arena.jsonl at shutdown
     int sessionStart = 0;
 };
@@ -62,7 +65,13 @@ struct Cvars {
     vmCvar_t loadout;       // g_loadout: 1 = spawn with every weapon (practice), 0 = pick them up
 };
 
+// The map's loadout (info_loadout): weapon ids given on spawn, in order; empty = the arena default
+struct MapRules {
+    std::vector<std::string> loadout;
+};
+
 extern std::array<EntState, MAX_GENTITIES> ents;
+extern MapRules rules;
 extern std::array<ClientState, MAX_CLIENTS> clients;
 extern Cvars mcv;
 
@@ -77,6 +86,8 @@ void GiveWeapon(playerState_t& ps, int slot, bool select);
 
 // weapons_fire.cpp
 void FireWeapon(gentity_t* player, playerState_t& ps);
+void TacThink(playerState_t& ps);      // reloads, reserve on the HUD
+bool StartReload(playerState_t& ps);   // false if there's nothing to reload
 void RunMissile(gentity_t* ent);
 
 // items.cpp

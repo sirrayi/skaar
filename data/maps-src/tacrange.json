@@ -1,0 +1,160 @@
+// Tac range (P7, docs/plan-P7.md): rifle and hand cannon, tac movement, dummies at ~10, 20 and 40 m
+// (1 m is about 40 units), standing and strafing. info_loadout sets the weapons and the ruleset.
+{
+  "name": "tacrange",
+  "message": "Skaar Tac Range",
+  "materials": {
+    "floor": "textures/skaar/range_floor",
+    "wall": "textures/skaar/range_wall",
+    "ceiling": "textures/skaar/range_ceiling",
+    "pad": "textures/skaar/range_pad",
+    "cover": "textures/skaar/range_wall"
+  },
+  "light": {
+    "ambient": 0.47,
+    "sun": 0.05,
+    "sunDir": [
+      0.3,
+      0.2,
+      -1
+    ]
+  },
+  "rooms": [
+    {
+      "min": [
+        -320,
+        -768,
+        0
+      ],
+      "max": [
+        2304,
+        768,
+        384
+      ],
+      "wall": 32,
+      "floor": "floor",
+      "walls": "wall",
+      "ceiling": "ceiling"
+    }
+  ],
+  "brushes": [
+    {
+      "min": [
+        -96,
+        -96,
+        0
+      ],
+      "max": [
+        96,
+        96,
+        8
+      ],
+      "material": "pad"
+    },
+    {
+      "min": [
+        560,
+        -560,
+        0
+      ],
+      "max": [
+        620,
+        -420,
+        56
+      ],
+      "material": "cover"
+    },
+    {
+      "min": [
+        560,
+        420,
+        0
+      ],
+      "max": [
+        620,
+        560,
+        56
+      ],
+      "material": "cover"
+    },
+    {
+      "min": [
+        1160,
+        -200,
+        0
+      ],
+      "max": [
+        1220,
+        200,
+        40
+      ],
+      "material": "cover"
+    }
+  ],
+  "entities": [
+    {
+      "classname": "info_player_deathmatch",
+      "origin": [
+        0,
+        0,
+        40
+      ],
+      "angle": 0
+    },
+    {
+      "classname": "info_loadout",
+      "weapons": "rifle handcannon",
+      "ruleset": "tac"
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        400,
+        -160,
+        40
+      ],
+      "angle": 180,
+      "pattern": "stand"
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        800,
+        160,
+        40
+      ],
+      "angle": 180,
+      "pattern": "stand"
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        800,
+        -260,
+        40
+      ],
+      "angle": 180,
+      "pattern": "strafe"
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        1600,
+        0,
+        40
+      ],
+      "angle": 180,
+      "pattern": "stand"
+    },
+    {
+      "classname": "info_dummy",
+      "origin": [
+        1400,
+        300,
+        40
+      ],
+      "angle": 180,
+      "pattern": "strafe"
+    }
+  ]
+}

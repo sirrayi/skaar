@@ -60,7 +60,7 @@ Rgb ItemColor(const arena::ItemDef& item) {
 }
 
 struct Effect {
-    enum class Type { kRail, kGlow, kRing };
+    enum class Type { kRail, kGlow, kRing, kTracer };
     Type type;
     vec3_t a, b;     // rail: start and end; others: a is the centre
     int start, duration;
@@ -222,6 +222,23 @@ void DrawEffects() {
                 trap::R_AddRefEntityToScene(&re);
                 break;
             }
+            case Effect::Type::kTracer: {
+                // a short bright streak travelling from the muzzle to the impact
+                vec3_t dir, head, tail;
+                VectorSubtract(e.b, e.a, dir);
+                const float len = VectorNormalize(dir);
+                const float travel = std::min(1.0f, t * 3.0f) * len;
+                VectorMA(e.a, travel, dir, head);
+                VectorMA(e.a, std::max(0.0f, travel - 160.0f), dir, tail);
+                refEntity_t re{};
+                re.reType = RT_RAIL_CORE;
+                re.customShader = media.beam;
+                VectorCopy(tail, re.origin);
+                VectorCopy(head, re.oldorigin);
+                SetColor(re, e.color, 0.55f * fade);
+                trap::R_AddRefEntityToScene(&re);
+                break;
+            }
             case Effect::Type::kGlow:
                 AddSprite(e.a, e.size0 + (e.size1 - e.size0) * t, media.glow, e.color, fade);
                 break;
@@ -275,7 +292,7 @@ void HitBeep() {
 void LoadWeapons() {
     // the built-ins, overridden by their files (the client only needs names and kinds)
     skaar::ResetWeapons();
-    for (const char* id : {"shotgun", "rocket", "lightning", "rail"}) {
+    for (const char* id : {"shotgun", "rocket", "lightning", "rail", "rifle", "handcannon"}) {
         std::string text, error;
         skaar::WeaponDef w;
         if (trap::FileRead(skaar::Va("weapons/%s.json", id), text) && skaar::ParseWeapon(id, text, w, error)) {
@@ -284,8 +301,10 @@ void LoadWeapons() {
     }
     // the server applies the same table (sgame mode.cpp), so prediction and firing agree
     skaar::move::ClearWeaponRefire();
+    skaar::move::ClearWeaponSemiAuto();
     for (const skaar::WeaponDef& w : skaar::Weapons()) {
         skaar::move::SetWeaponRefire(w.slot, w.refireMs);
+        skaar::move::SetWeaponSemiAuto(w.slot, w.semiAuto);
     }
 }
 
@@ -310,13 +329,13 @@ void Init() {
     media.pickup = trap::S_RegisterSound("sound/items/pickup.wav", false);
     media.pain = trap::S_RegisterSound("sound/player/pain.wav", false);
     media.hit = trap::S_RegisterSound("sound/feedback/hit.wav", false);
-    for (const char* cmd : {"weapon", "weapnext", "weapprev"}) {
-        trap::AddCommand(cmd);
+    for (const char* cmd : {"weapon", "weapnext", "weapprev", "reload"}) {
+        trap::AddCommand(cmd);  // reload goes on to the server (mode.cpp)
     }
 }
 
 void Shutdown() {
-    for (const char* cmd : {"weapon", "weapnext", "weapprev"}) {
+    for (const char* cmd : {"weapon", "weapnext", "weapprev", "reload"}) {
         trap::RemoveCommand(cmd);
     }
 }
@@ -371,6 +390,19 @@ void AddLocalEntities() {
 void EntityEvent(const entityState_t& es, int event) {
     switch (event) {
         case EV_RAILTRAIL: {
+            if (const skaar::WeaponDef* w = skaar::WeaponBySlot(es.weapon); w && w->tracer) {
+                Effect e{};
+                e.type = Effect::Type::kTracer;
+                VectorCopy(es.pos.trBase, e.a);
+                VectorCopy(es.origin2, e.b);
+                e.start = cg.time;
+                e.duration = 140;
+                e.color = {1.0f, 0.92f, 0.7f};
+                e.alpha = 1;
+                AddEffect(e);
+                Glow(es.origin2, 3, 8, 220, {1.0f, 0.9f, 0.7f}, 0.8f);
+                break;
+            }
             Effect e{};
             e.type = Effect::Type::kRail;
             VectorCopy(es.pos.trBase, e.a);
@@ -478,9 +510,19 @@ void DrawHud() {
     // current weapon and ammo, bottom right
     if (const skaar::WeaponDef* cur = skaar::WeaponBySlot(ps.weapon)) {
         const int ammo = ps.ammo[ps.weapon];
-        f.display.Draw(w - m, h - 52, 64, ammo < 0 ? "—" : skaar::Va("%d", ammo), ammo == 0 ? theme::kEmber : ink,
+        float right = w - m;
+        if (cur->magazine > 0) {
+            // magazine weapons: rounds in the magazine, the reserve beside it
+            const int reserve = ps.stats[arena::kStatReserve];
+            const std::string res = reserve < 0 ? "—" : skaar::Va("%d", reserve);
+            f.text.Draw(right, h - 52, 30, res, faint, 0, Align::kRight);
+            right -= f.text.Measure(30, res) + 22;
+        }
+        f.display.Draw(right, h - 52, 64, ammo < 0 ? "—" : skaar::Va("%d", ammo), ammo == 0 ? theme::kEmber : ink,
                        -0.01f, Align::kRight);
-        f.text.Draw(w - m, h - 100 - 30, 20, kit::Upper(cur->name), soft, 0.14f, Align::kRight);
+        const bool reloading = ps.stats[arena::kStatReloading] != 0;
+        f.text.Draw(w - m, h - 100 - 30, 20, reloading ? "RELOADING" : kit::Upper(cur->name), reloading ? ink : soft,
+                    0.14f, Align::kRight);
     }
 
     // owned weapons, bottom centre: the held one bright and underlined
@@ -506,6 +548,25 @@ void DrawHud() {
         }
         x += lw + 36;
     }
+}
+
+void ViewOffset(vec3_t /*origin*/, vec3_t angles) {
+    const playerState_t& ps = cg.predicted;
+    const skaar::WeaponDef* w = skaar::WeaponBySlot(ps.weapon);
+    if (!w || w->recoil.empty() || ps.pm_type == PM_DEAD || ps.stats[arena::kStatSpray] <= 0) {
+        return;
+    }
+    const int since = (cg.time - ps.stats[arena::kStatLastShot]) & 0x7fff;
+    if (w->recoilRecoverMs <= 0 || since >= w->recoilRecoverMs) {
+        return;
+    }
+    // full while spraying, easing back to zero over the recovery window
+    const float t = static_cast<float>(since) / w->recoilRecoverMs;
+    const float k = w->cameraFollow * (1 - t * t);
+    float up, right;
+    skaar::SprayOffset(*w, ps.stats[arena::kStatSpray], up, right);
+    angles[PITCH] -= up * k;
+    angles[YAW] -= right * k;
 }
 
 bool HudActive() { return cg.predicted.stats[STAT_WEAPONS] != 0; }

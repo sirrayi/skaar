@@ -56,7 +56,14 @@ void TouchItem(gentity_t* e, gentity_t* player) {
         }
         case arena::ItemType::kAmmo: {
             const skaar::WeaponDef* w = skaar::WeaponBySlot(def.slot);
-            if (w && ps.ammo[def.slot] >= 0 && ps.ammo[def.slot] < w->ammoMax) {
+            if (w && w->magazine > 0) {
+                // tac weapons: ammo goes to the reserve
+                int& reserve = clients[player->s.number].reserve[def.slot];
+                if (reserve < w->ammoMax) {
+                    reserve = std::min(reserve + (def.amount ? def.amount : w->ammoPickup), w->ammoMax);
+                    taken = true;
+                }
+            } else if (w && ps.ammo[def.slot] >= 0 && ps.ammo[def.slot] < w->ammoMax) {
                 ps.ammo[def.slot] = std::min(ps.ammo[def.slot] + (def.amount ? def.amount : w->ammoPickup), w->ammoMax);
                 taken = true;
             }

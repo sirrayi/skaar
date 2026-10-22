@@ -764,6 +764,11 @@ bool ConsoleCommand(const char* cmd) {
         return true;
     }
     if (!Q_stricmp(cmd, "sk_restart")) {
+        // in the arena / tac range (no scenario), R reloads instead
+        if (!st.scenarioLoaded && weapons::HudActive()) {
+            trap::SendClientCommand("reload");
+            return true;
+        }
         if (st.phase == Phase::kReplay) {
             st.phase = Phase::kOff;
         }

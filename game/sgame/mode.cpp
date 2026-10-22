@@ -11,12 +11,14 @@
 #include "mode_local.h"
 #include "shared/arenalog.h"
 #include "shared/move_pmove.h"
+#include "shared/move_ruleset.h"
 
 namespace sg::mode {
 
 std::array<EntState, MAX_GENTITIES> ents;
 std::array<ClientState, MAX_CLIENTS> clients;
 Cvars mcv;
+MapRules rules;
 
 namespace {
 
@@ -41,8 +43,10 @@ void LoadWeapons() {
     }
     // refire times from the definitions; the cgame sets the same so prediction agrees
     skaar::move::ClearWeaponRefire();
+    skaar::move::ClearWeaponSemiAuto();
     for (const skaar::WeaponDef& w : skaar::Weapons()) {
         skaar::move::SetWeaponRefire(w.slot, w.refireMs);
+        skaar::move::SetWeaponSemiAuto(w.slot, w.semiAuto);
     }
 }
 
@@ -242,8 +246,18 @@ void GiveWeapon(playerState_t& ps, int slot, bool select) {
     if (!w) {
         return;
     }
+    const bool had = ps.stats[STAT_WEAPONS] & (1 << slot);
     ps.stats[STAT_WEAPONS] |= 1 << slot;
-    if (mcv.infiniteAmmo.integer) {
+    if (w->magazine > 0) {
+        // tac weapons: a full magazine, the rest in reserve (pmove counts the magazine down)
+        int& reserve = clients[ps.clientNum].reserve[slot];
+        if (!had) {
+            ps.ammo[slot] = w->magazine;
+            reserve = std::max(reserve, w->ammoStart);
+        } else {
+            reserve = std::min(std::max(reserve, w->ammoStart), w->ammoMax);
+        }
+    } else if (mcv.infiniteAmmo.integer) {
         ps.ammo[slot] = -1;  // pmove never counts down -1
     } else if (ps.ammo[slot] >= 0) {
         ps.ammo[slot] = std::min(std::max(ps.ammo[slot], w->ammoStart), w->ammoMax);
@@ -259,6 +273,7 @@ void GiveWeapon(playerState_t& ps, int slot, bool select) {
 void Init() {
     ents.fill(EntState{});
     clients.fill(ClientState{});
+    rules = MapRules{};
     trap::CvarRegister(&mcv.knockback, "g_knockback", "1000", 0);
     trap::CvarRegister(&mcv.infiniteAmmo, "g_infiniteAmmo", "0", CVAR_ARCHIVE);
     trap::CvarRegister(&mcv.loadout, "g_loadout", "1", CVAR_ARCHIVE);
@@ -287,14 +302,28 @@ void ClientSpawn(int clientNum, playerState_t& ps) {
     for (int& a : ps.ammo) {
         a = 0;
     }
-    // practice loadout only on maps with arena items: the aim trainer's maps stay weaponless
-    bool arenaMap = false;
+    // loadouts only on arena maps (items, dummies or an info_loadout): the trainer's maps stay weaponless
+    bool arenaMap = !rules.loadout.empty();
     for (int i = MAX_CLIENTS; i < level.numEntities && !arenaMap; i++) {
         arenaMap = ents[i].kind == EntState::Kind::kItem || ents[i].kind == EntState::Kind::kDummy;
     }
-    if (arenaMap && mcv.loadout.integer) {
+    clients[clientNum].reserve.fill(0);
+    if (!rules.loadout.empty()) {
+        // the map's own loadout, first one in hand
+        for (const std::string& id : rules.loadout) {
+            if (const skaar::WeaponDef* w = skaar::WeaponById(id)) {
+                GiveWeapon(ps, w->slot, false);
+            }
+        }
+        if (const skaar::WeaponDef* first = skaar::WeaponById(rules.loadout.front())) {
+            ps.weapon = first->slot;
+        }
+    } else if (arenaMap && mcv.loadout.integer) {
+        // arena practice: every arena weapon (not the tac ones, which have magazines)
         for (const skaar::WeaponDef& w : skaar::Weapons()) {
-            GiveWeapon(ps, w.slot, false);
+            if (w.magazine == 0) {
+                GiveWeapon(ps, w.slot, false);
+            }
         }
         if (const skaar::WeaponDef* rail = skaar::WeaponById("rail")) {
             ps.weapon = rail->slot;
@@ -319,6 +348,7 @@ void ClientThink(int clientNum, const usercmd_t& /*cmd*/, playerState_t& ps, int
             FireWeapon(player, ps);
         }
     }
+    TacThink(ps);
 }
 
 bool ClientCommand(int clientNum, const char* cmd) {
@@ -335,6 +365,10 @@ bool ClientCommand(int clientNum, const char* cmd) {
             ps.stats[STAT_HEALTH] = 200;
             ps.stats[STAT_ARMOR] = 200;
         }
+        return true;
+    }
+    if (!Q_stricmp(cmd, "reload")) {
+        StartReload(ps);
         return true;
     }
     if (!Q_stricmp(cmd, "arenastats")) {
@@ -360,6 +394,26 @@ bool SpawnEntity(const char* classname, const EntityKeys& keys) {
     }
     if (!Q_stricmp(classname, "info_dummy")) {
         return SpawnDummy(keys);
+    }
+    if (!Q_stricmp(classname, "info_loadout")) {
+        // "weapons": ids given on spawn; "ruleset": the movement physics for this map
+        if (auto it = keys.find("weapons"); it != keys.end()) {
+            std::istringstream in(it->second);
+            std::string id;
+            while (in >> id) {
+                rules.loadout.push_back(id);
+            }
+        }
+        if (auto it = keys.find("ruleset"); it != keys.end()) {
+            std::string text;
+            if (skaar::move::FindRuleset(it->second) >= 0 ||
+                trap::FileRead(skaar::Va("rulesets/%s.json", it->second.c_str()), text)) {
+                trap::CvarSet("g_movement", it->second.c_str());
+            } else {
+                Com_Printf(S_COLOR_YELLOW "WARNING: info_loadout: unknown ruleset '%s'\n", it->second.c_str());
+            }
+        }
+        return true;
     }
     return false;
 }
