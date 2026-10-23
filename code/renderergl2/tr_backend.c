@@ -822,7 +822,11 @@ const void *RB_StretchPic ( const void *data ) {
 	RB_SetGL2D();
 
 	shader = cmd->shader;
-	if ( shader != tess.shader ) {
+	// skaar: also start a fresh batch when the last one was flushed. tess.shader
+	// outlives the frame, so a frame whose first 2D quad uses the same shader as
+	// the previous frame's last one skipped RB_BeginSurface and drew with stale
+	// vertex state (wrong vertex alpha, glyphs as solid blocks).
+	if ( shader != tess.shader || !tess.numIndexes ) {
 		if ( tess.numIndexes ) {
 			RB_EndSurface();
 		}
