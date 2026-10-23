@@ -198,6 +198,17 @@ void DrawPlay() {
             ui.selectedScenario = s.id;
         }
     }
+    // more rows than fit: say how many, above and below
+    const int above = static_cast<int>(scroll / kRowH + 0.5f);
+    const int visibleRows = static_cast<int>(view.h / kRowH);
+    const int below = static_cast<int>(shown.size()) - above - visibleRows;
+    if (above > 0) {
+        Label(m + kListW - 20, view.y - 14, skaar::Va("↑ %d MORE", above), theme::kCreamFaint, Align::kRight);
+    }
+    if (below > 0) {
+        Label(m + kListW - 20, view.Bottom() + 26, skaar::Va("↓ %d MORE  ·  SCROLL", below), theme::kCreamFaint,
+              Align::kRight);
+    }
     if (!data.scenarioErrors.empty()) {
         const auto& [id, error] = data.scenarioErrors.front();
         Label(m, h - 150, skaar::Va("%zu FILE(S) NOT LOADED  ·  %s: %s", data.scenarioErrors.size(), id.c_str(),
