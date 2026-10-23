@@ -2,6 +2,7 @@
 //
 // This file is part of Skaar. GPLv2 or later.
 #include <cmath>
+#include <cstring>
 
 #include "local.h"
 #include "trainer.h"

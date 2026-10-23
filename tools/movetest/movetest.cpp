@@ -10,6 +10,7 @@
 // 3. Determinism and ruleset JSON parsing.
 //
 // This file is part of Skaar. GPLv2 or later.
+#include <algorithm>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
@@ -228,6 +229,7 @@ void Check(bool ok, const char* what, const std::string& detail = "") {
     (ok ? g_passed : g_failed)++;
 }
 
+std::string Fmt(const char* fmt, ...) Q_PRINTF_FUNC(1, 2);
 std::string Fmt(const char* fmt, ...) {
     char buf[256];
     va_list ap;
