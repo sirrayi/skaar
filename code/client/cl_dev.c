@@ -282,7 +282,12 @@ static void CL_DevSensTest_f( void ) {
 void CL_DevInit( void ) {
 	dev_overlay = Cvar_Get( "dev_overlay", "0", CVAR_ARCHIVE );
 	Cvar_SetDescription( dev_overlay, "Corner panel: FPS, frame time, tick rate, ping, entities, last warnings" );
+	// toasts are a developer aid: on in dev builds, off for players
+#ifdef SKAAR_DEV
 	dev_toasts = Cvar_Get( "dev_toasts", "1", CVAR_ARCHIVE );
+#else
+	dev_toasts = Cvar_Get( "dev_toasts", "0", CVAR_ARCHIVE );
+#endif
 	Cvar_SetDescription( dev_toasts, "Show warnings and errors as small toasts in the bottom-right for 5 seconds" );
 	sens_dpi = Cvar_Get( "sens_dpi", "0", CVAR_ARCHIVE );
 	Cvar_SetDescription( sens_dpi, "Mouse DPI, used by sens_test to report cm/360" );

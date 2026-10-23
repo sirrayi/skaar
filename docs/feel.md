@@ -49,3 +49,16 @@ Yaw per count = `sensitivity × m_yaw` degrees (`m_yaw` 0.022 by default, the cl
 ## Not verified yet (needs a human at the machine)
 - `com_maxfps 240` holding 240 ± 1 with p99 < 4.6 ms. My automated test windows kept getting closed before they could measure.
 - Swipe-speed independence of the counts with a ruler (above).
+
+## Performance budget (Phase 2 D)
+Target on the reference machine (MacBook Pro M2 Pro, 120 Hz panel), measured with `dev_stats` or `dev_overlay 1`,
+**foreground window** (macOS throttles background windows, so agent runs can't measure this):
+
+| Situation | `com_maxfps` | Must hold |
+|---|---|---|
+| Any trainer scenario, HUD on | 240 | fps 240 ± 2, frame p99 ≤ 4.6 ms |
+| Arena (`devmap duel`) with dummies and rockets | 240 | fps 240 ± 2, frame p99 ≤ 4.6 ms |
+| Menus / Insights (2D UI) | 240 | fps 240 ± 2, frame p99 ≤ 4.6 ms |
+| Uncapped (`com_maxfps 0`) | 0 | no spikes in the log over 5 min |
+
+A soak run (`scripts/soak.sh`) also records frame p99 per sample in `logs/soak-*.csv` for regressions over time.
