@@ -71,8 +71,10 @@ private:
 
     void Friction();
     void Accelerate(const vec3_t wishdir, float wishspeed, float accel);
+    void CapAirSpeed(float speedBefore);
     void AirControl(const vec3_t wishdir, float wishspeed);
     float CmdScale(const usercmd_t& cmd) const;
+    float MaxSpeed() const;
     void SetMovementDir();
     bool CheckJump();
     bool CheckWaterJump();

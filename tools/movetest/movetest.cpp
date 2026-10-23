@@ -542,6 +542,39 @@ void TestRulesetJson() {
     ResetRulesets();
 }
 
+// SetWeaponRefire overrides Q3's refire table; clearing it restores Q3's.
+void TestWeaponRefire() {
+    auto fire = [] {
+        g_world.clear();
+        Floor();
+        Player p(0, 0, 0, 24);
+        p.ps.weapon = WP_RAILGUN;
+        p.ps.stats[STAT_WEAPONS] = 1 << WP_RAILGUN;
+        p.ps.ammo[WP_RAILGUN] = -1;
+        p.ps.weaponstate = WEAPON_READY;
+        p.time += kMsec;
+        pmove_t pm{};
+        pm.ps = &p.ps;
+        pm.cmd.serverTime = p.time;
+        pm.cmd.buttons = BUTTON_ATTACK;
+        pm.cmd.weapon = WP_RAILGUN;
+        pm.tracemask = MASK_PLAYERSOLID;
+        pm.trace = Trace;
+        pm.pointcontents = PointContents;
+        pm.pmove_fixed = 1;
+        pm.pmove_msec = kMsec;
+        skaar::move::Pmove(&pm);
+        return p.ps.weaponTime;
+    };
+    const int q3 = fire();
+    SetWeaponRefire(WP_RAILGUN, 300);
+    const int custom = fire();
+    ClearWeaponRefire();
+    const int back = fire();
+    Check(q3 == 1500 && custom == 300 && back == 1500, "weapons: refire override, then Q3's table again",
+          Fmt("q3 %d, override %d, cleared %d", q3, custom, back));
+}
+
 // data/base/rulesets/*.json must match the compiled-in defaults.
 void TestShippedRulesets(const std::string& repo) {
     for (const Ruleset* builtin : {&Vq3(), &Cpm()}) {
@@ -557,6 +590,120 @@ void TestShippedRulesets(const std::string& repo) {
     }
 }
 
+// rulesets/tac.json: run speed, counter-strafe stops, no strafe-jump gain.
+void TestTac(const std::string& repo) {
+    std::ifstream in(repo + "/data/base/rulesets/tac.json");
+    std::stringstream text;
+    text << in.rdbuf();
+    Ruleset tac;
+    std::string error;
+    if (!ParseRuleset("tac", text.str(), tac, error)) {
+        Check(false, "tac: rulesets/tac.json parses", error);
+        return;
+    }
+    ResetRulesets();
+    const int rs = AddRuleset(tac);
+
+    // run right to full speed, then counter-strafe (or let go) and time the stop
+    auto stop = [rs](int counter, int* toThird, int* toZero) {
+        g_world.clear();
+        Floor();
+        Player p(rs, 0, 0, 24);
+        for (int i = 0; i < 150; i++) {
+            p.Step(0, 0, 127, 0);
+        }
+        const float top = p.Speed();
+        *toThird = *toZero = -1;
+        for (int i = 1; i <= 100 && *toZero < 0; i++) {
+            p.Step(0, 0, counter, 0);
+            const float along = -p.ps.velocity[1];  // right is -y at yaw 0
+            if (*toThird < 0 && along < top / 3) {
+                *toThird = i * kMsec;
+            }
+            if (along <= 1) {
+                *toZero = i * kMsec;
+            }
+        }
+        return top;
+    };
+    int csThird, csZero, relThird, relZero;
+    const float top = stop(-127, &csThird, &csZero);
+    stop(0, &relThird, &relZero);
+    Check(std::fabs(top - 260) < 1.5f, "tac: run speed 260", Fmt("%.1f", top));
+    Check(csThird > 0 && csThird <= 64 && csZero > 0 && csZero <= 112, "tac: counter-strafe settles fast",
+          Fmt("to 1/3 speed %d ms, stopped %d ms", csThird, csZero));
+    Check(relZero > csZero, "tac: letting go stops slower than counter-strafing",
+          Fmt("release: to 1/3 speed %d ms, stopped %d ms", relThird, relZero));
+
+    g_world.clear();
+    Floor();
+    Player p(rs, 0, 0, 24);
+    RunUp(p, 0, 1);
+    StrafeJump(p, 8);
+    Check(p.Speed() <= 262, "tac: no strafe-jump speed gain", Fmt("%.0f ups after 8 s", p.Speed()));
+
+    const float vz = JumpVz(rs, 0);
+    Check(std::fabs(vz - 260) < 4, "tac: jump velocity 260", Fmt("%.1f (~%.0f units high)", vz, 260 * 260 / 1600.0));
+    ResetRulesets();
+}
+
+// Semi-automatic: one shot per press, refire waits for a release.
+void TestSemiAuto() {
+    g_world.clear();
+    Floor();
+    Player p(0, 0, 0, 24);
+    p.ps.weapon = WP_MACHINEGUN;
+    p.ps.stats[STAT_WEAPONS] = 1 << WP_MACHINEGUN;
+    p.ps.ammo[WP_MACHINEGUN] = -1;
+    p.ps.weaponstate = WEAPON_READY;
+    int shots = 0;
+    auto step = [&p, &shots](bool attack) {
+        const int before = p.ps.eventSequence;
+        p.time += kMsec;
+        pmove_t pm{};
+        pm.ps = &p.ps;
+        pm.cmd.serverTime = p.time;
+        pm.cmd.buttons = attack ? BUTTON_ATTACK : 0;
+        pm.cmd.weapon = WP_MACHINEGUN;
+        pm.tracemask = MASK_PLAYERSOLID;
+        pm.trace = Trace;
+        pm.pointcontents = PointContents;
+        pm.pmove_fixed = 1;
+        pm.pmove_msec = kMsec;
+        skaar::move::Pmove(&pm);
+        for (int e = before; e < p.ps.eventSequence; e++) {
+            shots += (p.ps.events[e & (MAX_PS_EVENTS - 1)] & ~EV_EVENT_BITS) == EV_FIRE_WEAPON;
+        }
+    };
+    auto hold = [&step](int ms) {
+        for (int t = 0; t < ms; t += kMsec) {
+            step(true);
+        }
+    };
+    auto release = [&step](int ms) {
+        for (int t = 0; t < ms; t += kMsec) {
+            step(false);
+        }
+    };
+
+    hold(500);
+    const int automatic = shots;
+    SetWeaponSemiAuto(WP_MACHINEGUN, true);
+    release(200);
+    shots = 0;
+    hold(500);
+    const int heldSemi = shots;
+    shots = 0;
+    for (int i = 0; i < 5; i++) {
+        release(104);
+        hold(104);
+    }
+    const int tapped = shots;
+    ClearWeaponSemiAuto();
+    Check(automatic >= 5 && heldSemi == 1 && tapped == 5, "weapons: semi-auto fires once per press",
+          Fmt("held 0.5 s: auto %d shots, semi %d; 5 taps: %d", automatic, heldSemi, tapped));
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -568,8 +715,11 @@ int main(int argc, char** argv) {
     TestJumps();
     TestDeterminism();
     TestRulesetJson();
+    TestWeaponRefire();
+    TestSemiAuto();
     if (argc > 1) {
         TestShippedRulesets(argv[1]);
+        TestTac(argv[1]);
     }
     std::printf("\n%d passed, %d failed\n", g_passed, g_failed);
     return g_failed ? 1 : 0;

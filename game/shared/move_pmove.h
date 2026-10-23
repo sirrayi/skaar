@@ -17,4 +17,18 @@ void Pmove(pmove_t* pm);
 // The view-angle part of a move only (clamps pitch, applies delta_angles).
 void UpdateViewAngles(playerState_t* ps, const usercmd_t* cmd);
 
+// Weapon refire time in ms, overriding Q3's table for that weapon (<= 0: Q3's
+// value again). Set the same table in sgame and cgame so prediction agrees.
+void SetWeaponRefire(int weapon, int ms);
+void ClearWeaponRefire();  // back to Q3's table for every weapon
+
+// Semi-automatic: fires once per press, attack must be released before the next
+// shot. Same table in sgame and cgame. ClearWeaponRefire doesn't touch it.
+void SetWeaponSemiAuto(int weapon, bool semiAuto);
+void ClearWeaponSemiAuto();
+
+// pm_flags bit (free in Q3, inside the 16 networked bits): attack held since
+// the last semi-automatic shot
+constexpr int kPmfAttackHeld = 128;
+
 }  // namespace skaar::move

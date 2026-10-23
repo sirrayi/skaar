@@ -98,6 +98,7 @@ Ruleset FromObject(std::string_view id, const json& j) {
         r.label = r.id;
     }
 
+    Read(j, "maxSpeed", r.maxSpeed, 0, 2000);
     Read(j, "accelerate", r.accelerate, 0, 100);
     Read(j, "friction", r.friction, 0, 100);
     Read(j, "stopSpeed", r.stopSpeed, 0, 1000);
@@ -110,6 +111,7 @@ Ruleset FromObject(std::string_view id, const json& j) {
     Read(j, "airControl", r.airControl, 0, 1000);
     Read(j, "airControlPower", r.airControlPower, 0, 8);
     Read(j, "airControlBackward", r.airControlBackward);
+    Read(j, "airSpeedCap", r.airSpeedCap, 0, 2000);
 
     Read(j, "jumpVelocity", r.jumpVelocity, 0, 2000);
     Read(j, "rampJump", r.rampJump);
@@ -215,6 +217,7 @@ void LoadRulesets(const std::function<std::vector<std::string>(const char* dir, 
 std::string ToJson(const Ruleset& r) {
     json j;
     j["label"] = r.label;
+    j["maxSpeed"] = r.maxSpeed;
     j["accelerate"] = r.accelerate;
     j["friction"] = r.friction;
     j["stopSpeed"] = r.stopSpeed;
@@ -226,6 +229,7 @@ std::string ToJson(const Ruleset& r) {
     j["airControl"] = r.airControl;
     j["airControlPower"] = r.airControlPower;
     j["airControlBackward"] = r.airControlBackward;
+    j["airSpeedCap"] = r.airSpeedCap;
     j["jumpVelocity"] = r.jumpVelocity;
     j["rampJump"] = r.rampJump;
     j["doubleJumpWindowMs"] = r.doubleJumpWindowMs;

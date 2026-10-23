@@ -1,0 +1,29 @@
+// Tactical movement (P7 tac-shooter mode): grounded and precise. A slower run,
+// snappy stops so counter-strafing settles your aim, no speed from strafe or
+// bunny jumping, a modest jump. Values and reasoning: docs/cpm-physics.md.
+// Keys left out keep vq3's values.
+{
+  "label": "Tactical",
+
+  // ground: high accel and friction, so letting go or counter-strafing stops you fast
+  "maxSpeed": 260,
+  "accelerate": 8,
+  "friction": 6,
+  "stopSpeed": 80,
+  "duckScale": 0.34,
+
+  // air: Q3's small accel, but it can't push you past the run speed
+  "airAccelerate": 1,
+  "airSpeedCap": 260,
+  "airStopAccelerate": 0,
+  "strafeAccelerate": 0,
+  "strafeWishSpeed": 0,
+  "airControl": 0,
+
+  // jumping: about 42 units high
+  "jumpVelocity": 260,
+  "rampJump": false,
+  "doubleJumpWindowMs": 0,
+  "doubleJumpBoost": 0,
+  "autoHop": false
+}

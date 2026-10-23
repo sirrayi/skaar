@@ -17,7 +17,8 @@
 
 namespace skaar::move {
 
-// playerState_t.stats slots owned by movement (7..13 are free, 0..6 are Q3's)
+// playerState_t.stats slots owned by movement. 0..6 are Q3's, 8..11 are the
+// tac weapons' (P7, skaar-07); 7, 12 and 13 are free.
 constexpr int kStatRuleset = 14;   // index into the registry below
 constexpr int kStatJumpTime = 15;  // ms left in the double-jump window (networked as int16)
 
@@ -31,6 +32,7 @@ struct Ruleset {
     std::string label;  // shown in menus (no trademarked names)
 
     // ground
+    float maxSpeed = 0;      // run speed; 0 = the server's g_speed (ps.speed)
     float accelerate = 10;
     float friction = 6;
     float stopSpeed = 100;   // friction acts as if at least this fast
@@ -44,6 +46,7 @@ struct Ruleset {
     float airControl = 0;         // turn toward the view with forward/back only; 0 = off
     float airControlPower = 2;    // exponent on the alignment term
     bool airControlBackward = true;
+    float airSpeedCap = 0;        // air accel can't raise horizontal speed past this; 0 = no cap
 
     // jumping
     float jumpVelocity = 270;

@@ -37,6 +37,13 @@ namespace {
 
 int c_pmove = 0;  // lets a debugger break on a given step
 
+int g_refireMs[WP_NUM_WEAPONS] = {};  // SetWeaponRefire overrides; 0 = Q3's table
+bool g_semiAuto[WP_NUM_WEAPONS] = {};  // SetWeaponSemiAuto
+
+float HorizontalSpeed(const vec3_t v) {
+    return std::sqrt(v[0] * v[0] + v[1] * v[1]);
+}
+
 // Rounds each component to the nearest integer to save network bandwidth.
 // Done here rather than through the engine's snapvector syscall so the server
 // and client prediction share one implementation on every platform.
@@ -213,6 +220,25 @@ void Move::AirControl(const vec3_t wishdir, float wishspeed) {
     ps_->velocity[1] = steered[1] * speed;
 }
 
+// Run speed: the ruleset's, or the server's g_speed.
+float Move::MaxSpeed() const {
+    return rs_.maxSpeed > 0 ? rs_.maxSpeed : static_cast<float>(ps_->speed);
+}
+
+// With an air speed cap, air acceleration can't take the horizontal speed past
+// the cap, or past what it already was (so knockback isn't cut): no strafe-jump gain.
+void Move::CapAirSpeed(float speedBefore) {
+    if (rs_.airSpeedCap <= 0) {
+        return;
+    }
+    const float limit = std::max(rs_.airSpeedCap, speedBefore);
+    const float speed = HorizontalSpeed(ps_->velocity);
+    if (speed > limit) {
+        ps_->velocity[0] *= limit / speed;
+        ps_->velocity[1] *= limit / speed;
+    }
+}
+
 // Scale factor for the cmd's -127..127 axial moves, so diagonals aren't sqrt(2)
 // faster.
 float Move::CmdScale(const usercmd_t& cmd) const {
@@ -226,7 +252,7 @@ float Move::CmdScale(const usercmd_t& cmd) const {
     const float total = static_cast<float>(
         std::sqrt(static_cast<double>(cmd.forwardmove * cmd.forwardmove + cmd.rightmove * cmd.rightmove +
                                       cmd.upmove * cmd.upmove)));
-    return static_cast<float>(static_cast<float>(ps_->speed) * static_cast<float>(max) / (127.0 * total));
+    return static_cast<float>(MaxSpeed() * static_cast<float>(max) / (127.0 * total));
 }
 
 // Rotation of the legs relative to the facing direction.
@@ -360,7 +386,7 @@ void Move::WaterMove() {
     vec3_t wishdir;
     VectorCopy(wishvel, wishdir);
     float wishspeed = VectorNormalize(wishdir);
-    wishspeed = std::min(wishspeed, static_cast<float>(ps_->speed) * rs_.swimScale);
+    wishspeed = std::min(wishspeed, MaxSpeed() * rs_.swimScale);
 
     Accelerate(wishdir, wishspeed, rs_.waterAccelerate);
 
@@ -438,7 +464,9 @@ void Move::AirMove() {
         }
         accel = rs_.strafeAccelerate;
     }
+    const float speedBefore = HorizontalSpeed(ps_->velocity);
     Accelerate(wishdir, accelWishspeed, accel);
+    CapAirSpeed(speedBefore);
 
     if (rs_.airControl > 0) {
         AirControl(wishdir, wishspeed);
@@ -516,14 +544,14 @@ void Move::WalkMove() {
 
     // slower when ducking
     if (ps_->pm_flags & PMF_DUCKED) {
-        wishspeed = std::min(wishspeed, static_cast<float>(ps_->speed) * rs_.duckScale);
+        wishspeed = std::min(wishspeed, MaxSpeed() * rs_.duckScale);
     }
 
     // slower when wading or walking on the bottom
     if (pm_->waterlevel) {
         float waterScale = static_cast<float>(pm_->waterlevel / 3.0);
         waterScale = static_cast<float>(1.0 - (1.0 - rs_.swimScale) * waterScale);
-        wishspeed = std::min(wishspeed, static_cast<float>(ps_->speed) * waterScale);
+        wishspeed = std::min(wishspeed, MaxSpeed() * waterScale);
     }
 
     // when hit, the player temporarily loses full control
@@ -991,6 +1019,11 @@ void Move::TorsoAnimation() {
 
 // Weapon events and the weapon counter.
 void Move::Weapon() {
+    // a semi-automatic weapon needs the attack released between shots
+    if (!(pm_->cmd.buttons & BUTTON_ATTACK)) {
+        ps_->pm_flags &= ~kPmfAttackHeld;
+    }
+
     // no attack until all buttons are up
     if (ps_->pm_flags & PMF_RESPAWNED) {
         return;
@@ -1044,10 +1077,14 @@ void Move::Weapon() {
         return;
     }
 
-    if (!(pm_->cmd.buttons & BUTTON_ATTACK)) {
+    const bool semiAuto = ps_->weapon >= 0 && ps_->weapon < WP_NUM_WEAPONS && g_semiAuto[ps_->weapon];
+    if (!(pm_->cmd.buttons & BUTTON_ATTACK) || (semiAuto && (ps_->pm_flags & kPmfAttackHeld))) {
         ps_->weaponTime = 0;
         ps_->weaponstate = WEAPON_READY;
         return;
+    }
+    if (semiAuto) {
+        ps_->pm_flags |= kPmfAttackHeld;
     }
 
     // start the animation even when out of ammo
@@ -1079,18 +1116,23 @@ void Move::Weapon() {
     AddEvent(EV_FIRE_WEAPON);
 
     int addTime;
-    switch (ps_->weapon) {
-        case WP_LIGHTNING: addTime = 50; break;
-        case WP_SHOTGUN: addTime = 1000; break;
-        case WP_MACHINEGUN: addTime = 100; break;
-        case WP_GRENADE_LAUNCHER: addTime = 800; break;
-        case WP_ROCKET_LAUNCHER: addTime = 800; break;
-        case WP_PLASMAGUN: addTime = 100; break;
-        case WP_RAILGUN: addTime = 1500; break;
-        case WP_BFG: addTime = 200; break;
-        case WP_GRAPPLING_HOOK: addTime = 400; break;
-        case WP_GAUNTLET:
-        default: addTime = 400; break;
+    const int weapon = ps_->weapon;
+    if (weapon >= 0 && weapon < WP_NUM_WEAPONS && g_refireMs[weapon] > 0) {
+        addTime = g_refireMs[weapon];
+    } else {
+        switch (weapon) {
+            case WP_LIGHTNING: addTime = 50; break;
+            case WP_SHOTGUN: addTime = 1000; break;
+            case WP_MACHINEGUN: addTime = 100; break;
+            case WP_GRENADE_LAUNCHER: addTime = 800; break;
+            case WP_ROCKET_LAUNCHER: addTime = 800; break;
+            case WP_PLASMAGUN: addTime = 100; break;
+            case WP_RAILGUN: addTime = 1500; break;
+            case WP_BFG: addTime = 200; break;
+            case WP_GRAPPLING_HOOK: addTime = 400; break;
+            case WP_GAUNTLET:
+            default: addTime = 400; break;
+        }
     }
 
     if (ps_->powerups[PW_HASTE]) {
@@ -1269,6 +1311,30 @@ void Move::Single() {
     WaterEvents();
 
     SnapToInt(ps_->velocity);
+}
+
+void SetWeaponRefire(int weapon, int ms) {
+    if (weapon >= 0 && weapon < WP_NUM_WEAPONS) {
+        g_refireMs[weapon] = ms > 0 ? ms : 0;
+    }
+}
+
+void ClearWeaponRefire() {
+    for (int& ms : g_refireMs) {
+        ms = 0;
+    }
+}
+
+void SetWeaponSemiAuto(int weapon, bool semiAuto) {
+    if (weapon >= 0 && weapon < WP_NUM_WEAPONS) {
+        g_semiAuto[weapon] = semiAuto;
+    }
+}
+
+void ClearWeaponSemiAuto() {
+    for (bool& semi : g_semiAuto) {
+        semi = false;
+    }
 }
 
 void UpdateViewAngles(playerState_t* ps, const usercmd_t* cmd) {
