@@ -46,7 +46,7 @@ constexpr float kValue = 28;      // mono: numbers in cells and tables
 constexpr float kLabel = 15;      // mono, uppercase: labels, eyebrows, hints
 }  // namespace type
 
-enum class Screen { kNone, kHome, kPlay, kInsights, kSettings, kInGame, kEditor };
+enum class Screen { kNone, kHome, kPlay, kInsights, kSettings, kInGame, kEditor, kFirstRun };
 enum class InsightsTab { kOverview, kScenarios, kRun, kBenchmarks, kArena };
 enum class SettingsTab { kAim, kCrosshair, kControls, kGame, kVideo, kAudio };
 
@@ -183,6 +183,8 @@ void DrawInsights();
 void DrawSettings();
 void DrawInGame();
 void DrawEditor();
+void DrawFirstRun();
+bool FirstRunPending();
 void EditScenario(const std::string& id);
 void DrawConnect(bool overlay);
 

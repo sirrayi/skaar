@@ -62,6 +62,7 @@ void Back() {
             Close();
             break;
         case Screen::kHome:
+        case Screen::kFirstRun:
             if (InGame()) {
                 Open(Screen::kInGame);
             }
@@ -214,6 +215,13 @@ void Init() {
     ui.pointer = trap::R_RegisterShaderNoMip("gfx/skaar/cursor");
     ui.move = trap::S_RegisterSound("sound/ui/move.wav");
     ui.confirm = trap::S_RegisterSound("sound/ui/confirm.wav");
+    // menu-owned settings that must survive restarts
+    static vmCvar_t archived[6];
+    const char* names[][2] = {{"sk_firstRunDone", "0"}, {"sk_convertYaw", "0.022"}, {"sk_convertSens", "0"},
+                              {"sk_arenaMovement", "cpm"}, {"sk_roamMovement", "cpm"}, {"sk_dpi", "800"}};
+    for (int i = 0; i < 6; i++) {
+        trap::CvarRegister(&archived[i], names[i][0], names[i][1], CVAR_ARCHIVE);
+    }
     ui.version = trap::CvarString("version");
     if (const size_t space = ui.version.find(' '); space != std::string::npos) {
         ui.version = "v" + ui.version.substr(space + 1, ui.version.find(' ', space + 1) - space - 1);
@@ -246,6 +254,9 @@ void Refresh(int realtime) {
         case Screen::kEditor:
             DrawEditor();
             break;
+        case Screen::kFirstRun:
+            DrawFirstRun();
+            break;
         case Screen::kNone:
             break;
     }
@@ -266,7 +277,7 @@ void SetActiveMenu(int menu) {
             Open(Screen::kInGame);
             break;
         default:  // UIMENU_MAIN and the legacy ones (cd key, team, postgame)
-            Open(Screen::kHome);
+            Open(FirstRunPending() && !InGame() ? Screen::kFirstRun : Screen::kHome);
             break;
     }
 }
@@ -288,6 +299,8 @@ bool ConsoleCommand() {
                          : what == "scenarios" ? InsightsTab::kScenarios
                          : what == "arena"     ? InsightsTab::kArena
                                                : InsightsTab::kOverview;
+    } else if (what == "firstrun") {
+        Open(Screen::kFirstRun);
     } else if (what == "play") {
         Open(Screen::kPlay);
     } else if (what == "settings" || what == "controls") {
