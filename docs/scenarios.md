@@ -9,6 +9,9 @@ copy as `scenarios/<id>-mine.json` in your home dir. For anything it doesn't cov
 - Built-in: `data/base/scenarios/<id>.json` (`<id>` is the file name and shows up in stats).
 - Your own: put the file in your home dir, `~/Library/Application Support/Skaar/base/scenarios/` on macOS
   (`~/.local/share/Skaar/base/scenarios/` on Linux; `~/.skaar/base/` if that folder already exists). The game reads both. A home file with a built-in's name overrides it.
+- **Packs:** zip a `scenarios/` folder (and `benchmarks/`, if the pack has one) and rename the zip to `<name>.pk3`.
+  Drop it into `base/` in your home dir. The game mounts every pk3 at start like a folder, and the pack's
+  scenarios show up in Play. Files that don't parse are listed under the scenario list instead of loading.
 - Comments (`//`) are allowed. Unknown keys are ignored. Bad values show an error in the scenario list instead of loading.
 
 ## Scenario
