@@ -29,6 +29,17 @@ Leaving out `CMAKE_OSX_ARCHITECTURES` builds universal arm64+x86_64 binaries (fo
 | `base/{cgame,qagame,ui}.dylib` | native game modules |
 | `base/*` symlinks | point at `data/base/*` (see `cmake/skaar/data.cmake`) |
 
+## Skaar.app (self-contained)
+```sh
+./scripts/package-app.sh [dir]     # or: ./scripts/skaar app [dir]; default dir: dist/
+```
+A Release build in `build-release/` (LTO, `-dead_strip`, no `SKAAR_DEV` code), universal unless `ARCH=arm64`.
+The game data is copied into `Contents/Resources/base` and the game modules into `Contents/MacOS/base`, so the
+app runs from anywhere: the engine uses `Contents/Resources` as `fs_basepath` when it holds a `base/`
+(`Sys_StripAppBundle`), and finds the modules through `fs_apppath`. Configs go to
+`~/Library/Application Support/Skaar`. The app is ad-hoc signed, which runs on the Mac that built it;
+other Macs need a Developer ID signature and notarization (`docs/macos-codesign-notarization.txt`).
+
 ## Window
 Every launch starts windowed at 854×480 points, centered, resizable (`r_mode -1`). Cmd+Ctrl+F, Cmd+Enter,
 Alt+Enter, the green title bar button and Settings toggle fullscreen, which on macOS is a borderless window

@@ -52,3 +52,4 @@ profile
 
 # Python bytecode
 __pycache__/
+/dist/
