@@ -2236,6 +2236,9 @@ int Com_EventLoop( void ) {
 			case SE_JOYSTICK_AXIS:
 				CL_JoystickEvent( ev.evValue, ev.evValue2, ev.evTime );
 			break;
+			case SE_MOUSE_POS:
+				CL_MousePosition( ev.evValue, ev.evValue2 );
+			break;
 			case SE_CONSOLE:
 				Cbuf_AddText( (char *)ev.evPtr );
 				Cbuf_AddText( "\n" );
@@ -2744,6 +2747,12 @@ void Com_Init( char *commandLine ) {
 	Cmd_AddCommand("game_restart", Com_GameRestart_f);
 
 	Com_ExecuteCfg();
+
+#ifndef DEDICATED
+	// skaar: every launch starts in a window; fullscreen is a toggle (Cmd+Ctrl+F),
+	// not a saved state. The command line can still ask for it.
+	Cvar_Set( "r_fullscreen", "0" );
+#endif
 
 	// override anything from the config files with command line args
 	Com_StartupVariable( NULL );

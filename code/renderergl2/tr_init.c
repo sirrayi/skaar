@@ -1264,11 +1264,11 @@ void R_Register( void )
 	ri.Cvar_CheckRange( r_ext_multisample, 0, 4, qtrue );
 	r_overBrightBits = ri.Cvar_Get ("r_overBrightBits", "1", CVAR_ARCHIVE | CVAR_LATCH );
 	r_ignorehwgamma = ri.Cvar_Get( "r_ignorehwgamma", "0", CVAR_ARCHIVE | CVAR_LATCH);
-	r_mode = ri.Cvar_Get( "r_mode", "-2", CVAR_ARCHIVE | CVAR_LATCH );
-	r_fullscreen = ri.Cvar_Get( "r_fullscreen", "1", CVAR_ARCHIVE );
+	r_mode = ri.Cvar_Get( "r_mode", "-1", CVAR_ARCHIVE | CVAR_LATCH );
+	r_fullscreen = ri.Cvar_Get( "r_fullscreen", "0", CVAR_ARCHIVE );
 	r_noborder = ri.Cvar_Get("r_noborder", "0", CVAR_ARCHIVE | CVAR_LATCH);
-	r_customwidth = ri.Cvar_Get( "r_customwidth", "1600", CVAR_ARCHIVE | CVAR_LATCH );
-	r_customheight = ri.Cvar_Get( "r_customheight", "1024", CVAR_ARCHIVE | CVAR_LATCH );
+	r_customwidth = ri.Cvar_Get( "r_customwidth", "854", CVAR_ARCHIVE | CVAR_LATCH );
+	r_customheight = ri.Cvar_Get( "r_customheight", "480", CVAR_ARCHIVE | CVAR_LATCH );
 	r_customPixelAspect = ri.Cvar_Get( "r_customPixelAspect", "1", CVAR_ARCHIVE | CVAR_LATCH );
 	r_simpleMipMaps = ri.Cvar_Get( "r_simpleMipMaps", "1", CVAR_ARCHIVE | CVAR_LATCH );
 	r_vertexLight = ri.Cvar_Get( "r_vertexLight", "0", CVAR_ARCHIVE | CVAR_LATCH );
@@ -1370,11 +1370,9 @@ void R_Register( void )
 #ifdef __EMSCRIPTEN__
 	// Under Emscripten we don't throttle framerate with com_maxfps by default, so enable
 	// vsync by default instead.
-	r_swapInterval = ri.Cvar_Get( "r_swapInterval", "1",
-					CVAR_ARCHIVE | CVAR_LATCH );
+	r_swapInterval = ri.Cvar_Get( "r_swapInterval", "1", CVAR_ARCHIVE );
 #else
-	r_swapInterval = ri.Cvar_Get( "r_swapInterval", "0",
-					CVAR_ARCHIVE | CVAR_LATCH );
+	r_swapInterval = ri.Cvar_Get( "r_swapInterval", "0", CVAR_ARCHIVE );
 #endif
 	r_gamma = ri.Cvar_Get( "r_gamma", "1", CVAR_ARCHIVE );
 	r_facePlaneCull = ri.Cvar_Get ("r_facePlaneCull", "1", CVAR_ARCHIVE );
@@ -1653,6 +1651,38 @@ void RE_EndRegistration( void ) {
 
 
 /*
+=============
+RE_ResizeVideo
+
+skaar: called by the client every frame. When the window's drawable size changed
+(resize, fullscreen toggle, another display), resize the screen-sized render
+targets in place instead of a vid_restart, and hand back the new config.
+=============
+*/
+static qboolean RE_ResizeVideo( glconfig_t *config ) {
+	int width, height;
+
+	if ( !tr.registered || !GLimp_DrawableSize( &width, &height ) ||
+		( width == glConfig.vidWidth && height == glConfig.vidHeight ) ) {
+		return qfalse;
+	}
+
+	R_IssuePendingRenderCommands();
+	glConfig.vidWidth = width;
+	glConfig.vidHeight = height;
+	glConfig.windowAspect = (float)width / (float)height;
+	if ( glRefConfig.framebufferObject ) {
+		R_ResizeScreenImages( width, height );
+		FBO_ResizeScreen();
+	}
+	GLSL_SetFBufScale();
+	ri.Printf( PRINT_DEVELOPER, "video: %dx%d\n", width, height );
+
+	*config = glConfig;
+	return qtrue;
+}
+
+/*
 @@@@@@@@@@@@@@@@@@@@@
 GetRefAPI
 
@@ -1715,6 +1745,7 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.inPVS = R_inPVS;
 
 	re.TakeVideoFrame = RE_TakeVideoFrame;
+	re.ResizeVideo = RE_ResizeVideo;
 
 	return &re;
 }

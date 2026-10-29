@@ -2259,6 +2259,8 @@ void GLSL_ShutdownGPUShaders(qboolean keep);
 void GLSL_ReleaseKeptPrograms(void);
 void GLSL_SetFBufScale(void);
 void GLSL_CompileDeferredPrograms(int maxMsec);
+void R_ResizeScreenImages( int width, int height );
+void FBO_ResizeScreen( void );
 void GLSL_VertexAttribPointers(uint32_t attribBits);
 void GLSL_BindProgram(shaderProgram_t * program);
 
