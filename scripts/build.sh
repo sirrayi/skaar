@@ -66,4 +66,10 @@ if [ ! -f "$DIR/CMakeCache.txt" ] || [ "$0" -nt "$DIR/CMakeCache.txt" ] ||
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 fi
 
+# Ninja is parallel by default; make is not
+if [ -z "${CMAKE_BUILD_PARALLEL_LEVEL:-}" ] && ! grep -q '^CMAKE_GENERATOR:INTERNAL=Ninja$' "$DIR/CMakeCache.txt"; then
+    CMAKE_BUILD_PARALLEL_LEVEL=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+    export CMAKE_BUILD_PARALLEL_LEVEL
+fi
+
 cmake --build "$DIR" "$@"

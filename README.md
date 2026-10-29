@@ -2,7 +2,7 @@
 
 # Skaar
 
-An open-source aim trainer and movement shooter. Early development.
+An open-source aim trainer and movement shooter. Early development, public, and open to anyone: fork it, mod it, send a PR.
 
 - **Aim trainer**: clicking, tracking and target-switching scenarios. Each one is a JSON
   file, so anyone can add or tune them: see [docs/scenarios.md](docs/scenarios.md).
@@ -13,7 +13,21 @@ An open-source aim trainer and movement shooter. Early development.
 
 Runs on its own free assets. No Quake III data needed.
 
-## Build and run (macOS)
+## Install and play
+
+macOS (Apple Silicon; Intel should work too) and Linux. Open a terminal and run:
+
+```sh
+git clone https://github.com/stackedlol/skaar.git
+cd skaar
+./install.sh
+```
+
+Then play with `skaar` from any terminal. On a Mac, if Apple's Command Line Tools
+popup appears, let it finish and run `./install.sh` again. `skaar update` gets the
+latest version. Expect rough edges; crash reports land in `logs/` (`skaar crash`).
+
+## Developing
 
 ```sh
 brew install cmake ninja ccache fswatch

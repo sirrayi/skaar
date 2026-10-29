@@ -342,6 +342,12 @@ Dlls will call this directly
  
 ============
 */
+// Skaar: the va_arg loop below reads past the arguments actually passed (by
+// design, see above), which AddressSanitizer reports as a stack overflow on
+// Linux x86_64. Exempt just this function.
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize_address))
+#endif
 intptr_t QDECL VM_DllSyscall( intptr_t arg, ... ) {
 #if !id386 || defined __clang__
   // rcg010206 - see commentary above

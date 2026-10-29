@@ -10,6 +10,8 @@ cat > "$DEST/skaar" <<SHIM
 # Installed by $REPO/scripts/install-command.sh
 SKAAR_HOME=\${SKAAR_HOME:-$REPO}
 export SKAAR_HOME
+# a private CMake from install.sh, if it had to fetch one
+[ -d "\$SKAAR_HOME/.tools/bin" ] && PATH="\$SKAAR_HOME/.tools/bin:\$PATH"
 exec "\$SKAAR_HOME/scripts/skaar" "\$@"
 SHIM
 chmod +x "$DEST/skaar"

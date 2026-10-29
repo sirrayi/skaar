@@ -4,6 +4,7 @@
 #   skaar dev          the auto rebuild loop (scripts/dev-watch.sh)
 #   skaar map <name>   build if needed, then play straight into a map
 #   skaar build [fast|safe]
+#   skaar update       pull the latest code, then rebuild
 #   skaar smoke        pre-commit smoke test
 #   skaar watch        filtered live log of the running game
 #   skaar crash        show the newest crash report
@@ -111,7 +112,7 @@ build_step() {
     "$REPO/scripts/build.sh" "$config" > "$log" 2>&1 &
     # ninja prints [done/total]; show it with the file being built
     if spin build $! "tail -n 1 '$log' | sed -E -n 's|^\\[([0-9]+/[0-9]+)\\] [A-Za-z ]+ (CXX \\|C )?(object )?.*/([^/]+)\$|\\1  \\4|p'"; then
-        compiled=$(grep -c -E '^\[[0-9]+/[0-9]+\] Building' "$log")
+        compiled=$(grep -c -E '^\[([0-9]+/[0-9]+| *[0-9]+%)\] Building' "$log")
         if [ "$compiled" -gt 0 ]; then
             ok build "$config build ready ($compiled files compiled)" "$(elapsed "$t0")"
         else
@@ -211,6 +212,14 @@ case "$cmd" in
         build_step "${1:-fast}"
         echo
         ;;
+    update)
+        intro update
+        git -C "$REPO" pull --ff-only || { bad update "git pull failed (local changes?)"; exit 1; }
+        ok update "now at $(git -C "$REPO" log -1 --format='%h %s' | cut -c1-60)"
+        toolchain
+        build_step fast
+        echo
+        ;;
     smoke)
         intro smoke
         exec "$REPO/scripts/smoke.sh"
@@ -225,7 +234,7 @@ case "$cmd" in
         cat "$f"
         ;;
     -h|--help|help)
-        sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
         ;;
     *)
         echo "skaar: unknown command '$cmd' (try: skaar help)" >&2
