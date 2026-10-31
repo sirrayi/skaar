@@ -147,7 +147,8 @@ bool Focused(int id);
 bool Activated(int id, const Rect& r);  // click on r, or Enter while focused
 int Adjusted(int id);                   // -1 / +1 when focused and Left/Right pressed
 bool Hovered(const Rect& r);
-float Scroll(const std::string& key, const Rect& view, float contentHeight, float focusTop, float focusBottom);
+float Scroll(const std::string& key, const Rect& view, float contentHeight, float focusTop, float focusBottom,
+             float rowHeight);
 
 void Label(float x, float baseline, const std::string& text, Color color = theme::kCreamFaint,
            Align align = Align::kLeft);

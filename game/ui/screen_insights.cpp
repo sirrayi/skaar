@@ -235,7 +235,7 @@ void DrawScenarios(float top) {
 
     const float listW = 480, rowH = 70;
     const Rect view{m - 40, top, listW + 40, h - top - 130};
-    const float scroll = Scroll("insights-scenarios", view, list.size() * rowH, -1, -1);
+    const float scroll = Scroll("insights-scenarios", view, list.size() * rowH, -1, -1, rowH);
     for (size_t i = 0; i < list.size(); i++) {
         const insights::ScenarioStats& s = *list[i];
         const float y = top + i * rowH - scroll;

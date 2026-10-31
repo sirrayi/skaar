@@ -208,10 +208,11 @@ int Adjusted(int id) {
     return 0;
 }
 
-float Scroll(const std::string& key, const Rect& view, float contentHeight, float focusTop, float focusBottom) {
+float Scroll(const std::string& key, const Rect& view, float contentHeight, float focusTop, float focusBottom,
+             float rowHeight) {
     float& s = ui.scroll[key];
     if (in.wheel && Hovered(view)) {
-        s -= in.wheel * 72.0f;
+        s -= in.wheel * rowHeight;  // one row a notch: the offset stays on whole rows
         in.wheel = 0;
     }
     // keep the keyboard focus in view
