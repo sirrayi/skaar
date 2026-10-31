@@ -97,7 +97,9 @@ Cvars cv;
 
 void RegisterCvars() {
     trap::CvarRegister(&cv.scenario, "sk_scenario", "", CVAR_ARCHIVE);
-    trap::CvarRegister(&cv.dpi, "sk_dpi", "800", CVAR_ARCHIVE);
+    // sens_dpi is the cvar docs/feel.md documents and sens_test divides by; the aim
+    // screens read it too. Its default is 0 = unset, so the record falls back to 800.
+    trap::CvarRegister(&cv.dpi, "sens_dpi", "0", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.sensitivity, "sensitivity", "2", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.mYaw, "m_yaw", "0.022", CVAR_ARCHIVE);
     namespace rd = skaar::ui::reticle_defaults;
@@ -117,7 +119,10 @@ void UpdateCvars() {
     }
 }
 
-float CmPer360() { return skaar::sens::CmPer360(cv.sensitivity.value, cv.mYaw.value, cv.dpi.value); }
+float CmPer360() {
+    const float dpi = cv.dpi.value > 0 ? cv.dpi.value : 800;  // 0 = unset, as the aim screens read it
+    return skaar::sens::CmPer360(cv.sensitivity.value, cv.mYaw.value, dpi);
+}
 
 skaar::RunTime Now() {
     qtime_t t{};
