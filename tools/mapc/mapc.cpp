@@ -152,6 +152,18 @@ void AddRoom(const json& room, std::vector<Box>& boxes) {
     const std::string floorMat = room.value("floor", walls);
     const std::string ceiling = room.value("ceiling", walls);
 
+    // the walls are built from these directly, so ReadBox's guard never runs:
+    // a swapped or zero-thickness room compiles to brushes that collide with
+    // nothing and says nothing about it
+    for (int i = 0; i < 3; i++) {
+        if (mn[i] >= mx[i]) {
+            throw std::runtime_error("room min must be < max on every axis");
+        }
+    }
+    if (!(t > 0.0f)) {
+        throw std::runtime_error("room wall must be > 0");
+    }
+
     boxes.push_back({{mn[0] - t, mn[1] - t, mn[2] - t}, {mx[0] + t, mx[1] + t, mn[2]}, floorMat, {}});
     boxes.push_back({{mn[0] - t, mn[1] - t, mx[2]}, {mx[0] + t, mx[1] + t, mx[2] + t}, ceiling, {}});
     boxes.push_back({{mn[0] - t, mn[1] - t, mn[2]}, {mn[0], mx[1] + t, mx[2]}, walls, {}});
