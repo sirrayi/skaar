@@ -38,8 +38,9 @@ bool SpawnEntity(const char* classname, const EntityKeys& keys);
 // that isn't a jump pad. Called once per move while overlapping.
 void Touch(gentity_t* trigger, gentity_t* player);
 
-// The single damage entry point. mod = means of death (bg_public.h).
+// The single damage entry point. mod = means of death (bg_public.h);
+// knockbackScale = the firing weapon's WeaponDef::knockback.
 void Damage(gentity_t* target, gentity_t* inflictor, gentity_t* attacker, const vec3_t dir, const vec3_t point,
-            int damage, int dflags, int mod);
+            int damage, int dflags, int mod, float knockbackScale);
 
 }  // namespace sg::mode

@@ -28,6 +28,8 @@ constexpr float kArmorProtection = 0.66f;
 // damage is an int the game does arithmetic on; anything past this is nonsense data, and
 // 2147483647 itself is not representable as a float, so the clamp value stays well inside int
 constexpr float kMaxDamage = 1.0e9f;
+// knockback scales the whole push (WeaponDef::knockback); ten times Q3's is already absurd
+constexpr float kMaxKnockbackScale = 10.0f;
 
 void LoadWeapons() {
     skaar::ResetWeapons();
@@ -200,7 +202,8 @@ bool Damageable(const gentity_t* ent) {
     return st.kind == EntState::Kind::kDummy && st.deadUntil == 0;
 }
 
-void RadiusDamage(const vec3_t origin, gentity_t* attacker, float damage, float radius, gentity_t* ignore, int mod) {
+void RadiusDamage(const vec3_t origin, gentity_t* attacker, float damage, float radius, gentity_t* ignore, int mod,
+                  float knockbackScale) {
     if (radius < 1) {
         return;
     }
@@ -243,7 +246,7 @@ void RadiusDamage(const vec3_t origin, gentity_t* attacker, float damage, float 
         // outside int's range is UB (INT_MIN here, INT_MAX there), so saturate first
         const float scaled = damage * (1.0f - dist / radius);
         const int take = static_cast<int>(std::clamp(std::isfinite(scaled) ? scaled : 0.0f, 0.0f, kMaxDamage));
-        Damage(ent, nullptr, attacker, dir, origin, take, kDamageRadius, mod);
+        Damage(ent, nullptr, attacker, dir, origin, take, kDamageRadius, mod, knockbackScale);
     }
 }
 
@@ -439,15 +442,18 @@ void Touch(gentity_t* trigger, gentity_t* player) {
 }
 
 void Damage(gentity_t* target, gentity_t* inflictor, gentity_t* attacker, const vec3_t dir, const vec3_t point,
-            int damage, int dflags, int mod) {
+            int damage, int dflags, int mod, float knockbackScale) {
     (void)inflictor;
     (void)point;
     (void)mod;
     if (!Damageable(target) || damage <= 0) {
         return;
     }
+    // the weapon parser bounds knockback neither above nor below, and a non-finite or huge
+    // scale would land in ps.velocity (then in the snapped entity origin), so bound it here
+    knockbackScale = std::isfinite(knockbackScale) ? std::clamp(knockbackScale, 0.0f, kMaxKnockbackScale) : 1.0f;
     if (!target->client) {
-        DamageDummy(target, attacker, dir, damage, dflags);
+        DamageDummy(target, attacker, dir, damage, dflags, knockbackScale);
         return;
     }
 
@@ -467,7 +473,7 @@ void Damage(gentity_t* target, gentity_t* inflictor, gentity_t* attacker, const 
     }
     if (knockback && ps.pm_type == PM_NORMAL) {
         vec3_t kvel;
-        VectorScale(d, mcv.knockback.value * static_cast<float>(knockback) / 200.0f, kvel);
+        VectorScale(d, mcv.knockback.value * knockbackScale * static_cast<float>(knockback) / 200.0f, kvel);
         VectorAdd(ps.velocity, kvel, ps.velocity);
         if (!ps.pm_time) {
             ps.pm_time = std::clamp(knockback * 2, 50, 200);
