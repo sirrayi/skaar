@@ -294,6 +294,12 @@ void RunFrame(int /*levelTime*/) {
     Decay();
 }
 
+void ClientDisconnect(int clientNum) {
+    // the slot is about to be handed to the next player, and WriteSession clears it:
+    // without this the newcomer inherited these stats and the old sessionStart
+    WriteSession(clientNum);
+}
+
 void ClientSpawn(int clientNum, playerState_t& ps) {
     ps.stats[STAT_HEALTH] = skaar::arena::kMaxHealth;
     ps.stats[STAT_MAX_HEALTH] = skaar::arena::kMaxHealth;
