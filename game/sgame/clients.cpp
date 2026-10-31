@@ -125,6 +125,7 @@ void ClientDisconnect(int clientNum) {
     std::memset(&ent, 0, sizeof(ent));
     std::memset(&g_clients[clientNum], 0, sizeof(gclient_t));
     trap::SetConfigstring(CS_PLAYERS + clientNum, "");
+    mode::ClientDisconnect(clientNum);  // save the session log, then hand the slot over clean
     Com_DPrintf("sgame: client %d disconnected\n", clientNum);
 }
 

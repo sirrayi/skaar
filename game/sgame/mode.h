@@ -16,6 +16,10 @@ void Init();      // before the map's entities spawn
 void Shutdown();
 void RunFrame(int levelTime);  // after the level clock advanced
 
+// The client is gone: save their session and clear the per-client state, so the next
+// player in the same slot starts clean.
+void ClientDisconnect(int clientNum);
+
 // After the base spawn set up ps (origin, angles, health 100); give loadouts here.
 void ClientSpawn(int clientNum, playerState_t& ps);
 
