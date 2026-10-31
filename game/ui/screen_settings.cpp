@@ -23,7 +23,8 @@ void DrawAim(float top) {
     const float m = theme::kMargin;
     const float sens = trap::CvarValue("sensitivity");
     const float yaw = trap::CvarValue("m_yaw") > 0 ? trap::CvarValue("m_yaw") : 0.022f;
-    float dpi = trap::CvarValue("sk_dpi");
+    // sens_dpi is the documented cvar (docs/feel.md, sens_test reads it); 0 means unset
+    float dpi = trap::CvarValue("sens_dpi");
     if (dpi <= 0) {
         dpi = 800;
     }
@@ -36,7 +37,7 @@ void DrawAim(float top) {
     }
     y += kRowStep;
     if (NumberRow(y, "Mouse DPI", dpi, 50, 64000, "%.0f", v)) {
-        trap::CvarSet("sk_dpi", skaar::Va("%g", v));
+        trap::CvarSet("sens_dpi", skaar::Va("%g", v));
     }
     y += kRowStep;
     if (NumberRow(y, "cm / 360°", cm, 1, 500, "%.2f", v)) {

@@ -228,10 +228,11 @@ void Init() {
     ui.pointer = trap::R_RegisterShaderNoMip("gfx/skaar/cursor");
     ui.move = trap::S_RegisterSound("sound/ui/move.wav");
     ui.confirm = trap::S_RegisterSound("sound/ui/confirm.wav");
-    // menu-owned settings that must survive restarts
+    // menu-owned settings that must survive restarts (sens_dpi's client default is
+    // 0 = unset; the aim screens fall back to a sane 800)
     static vmCvar_t archived[6];
     const char* names[][2] = {{"sk_firstRunDone", "0"}, {"sk_convertYaw", "0.022"}, {"sk_convertSens", "0"},
-                              {"sk_arenaMovement", "cpm"}, {"sk_roamMovement", "cpm"}, {"sk_dpi", "800"}};
+                              {"sk_arenaMovement", "cpm"}, {"sk_roamMovement", "cpm"}, {"sens_dpi", "0"}};
     for (int i = 0; i < 6; i++) {
         trap::CvarRegister(&archived[i], names[i][0], names[i][1], CVAR_ARCHIVE);
     }
