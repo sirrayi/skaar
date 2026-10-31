@@ -172,8 +172,10 @@ void ClientCommand(int clientNum) {
         }
     } else if (!Q_stricmp(cmd.c_str(), "respawn") || !Q_stricmp(cmd.c_str(), "sk_restart")) {
         // sk_restart reaches the server only when the cgame trainer didn't handle it
-        // (no scenario loaded): fall back to a respawn
-        Spawn(clientNum);
+        // (no scenario loaded): fall back to a respawn. Respawn() and not Spawn(): it clears
+        // client.dead too, otherwise the next think put the fresh player back in PM_DEAD and
+        // the death's forced-respawn timer teleported them a second time.
+        Respawn(clientNum);
     } else if (!mode::ClientCommand(clientNum, cmd.c_str())) {
         SendPrint(clientNum, skaar::Va("unknown command: %s\n", cmd.c_str()));
     }
