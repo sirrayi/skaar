@@ -32,6 +32,13 @@ function(skaar_module TARGET OUTPUT DEFINE)
     target_link_libraries(${TARGET} PRIVATE ${COMMON_LIBRARIES})
     # strict warnings on our C++ only; the reused Q3 C keeps upstream flags
     target_compile_options(${TARGET} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${SKAAR_STRICT_FLAGS}>)
+    if(NOT MSVC)
+        # No FMA contraction anywhere in a module: move_pmove.cpp and the
+        # q_math.c it calls must do the arithmetic skaar_movetest certifies as
+        # byte-identical to bg_pmove.c (cmake/skaar/tests.cmake), not the one
+        # clang picks by default at -O2
+        target_compile_options(${TARGET} PRIVATE -ffp-contract=off)
+    endif()
     set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME ${GAME_MODULE_OUTPUT_${OUTPUT}})
     set_output_dirs(${TARGET} SUBDIRECTORY ${BASEGAME})
 endfunction()
