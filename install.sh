@@ -129,14 +129,23 @@ case ":$PATH:" in
     *":$BIN_DIR:"*) on_path=1 ;;
     *)
         on_path=0
+        unmanaged=
+        line="export PATH=\"$BIN_DIR:\$PATH\""
         case "$(basename "${SHELL:-sh}")" in
+            fish) mkdir -p "$HOME/.config/fish"
+                  rc="$HOME/.config/fish/config.fish"
+                  line="fish_add_path \"$BIN_DIR\"" ;;
             zsh)  rc="$HOME/.zshrc" ;;
             bash) if [ "$OS" = Darwin ]; then rc="$HOME/.bash_profile"; else rc="$HOME/.bashrc"; fi ;;
-            *)    rc="$HOME/.profile" ;;
+            *)    rc="$HOME/.profile"; unmanaged=1 ;;
         esac
         if ! grep -qs 'added by the Skaar installer' "$rc"; then
-            printf '\n# added by the Skaar installer\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$rc"
-            note "added ~/.local/bin to your PATH in $rc"
+            printf '\n# added by the Skaar installer\n%s\n' "$line" >> "$rc"
+            if [ -n "$unmanaged" ]; then
+                note "added $BIN_DIR to $rc, but this installer doesn't know $(basename "${SHELL:-sh}"): add it to your PATH yourself"
+            else
+                note "added ~/.local/bin to your PATH in $rc"
+            fi
         fi
         ;;
 esac
@@ -144,6 +153,8 @@ esac
 printf '\n%s%sDone.%s\n' "$G" "$B" "$O"
 if [ "$on_path" = 1 ]; then
     note "Play:    skaar"
+elif [ -n "${unmanaged:-}" ]; then
+    note "Play now: $BIN_DIR/skaar      (until $BIN_DIR is on your PATH)"
 else
     note "Open a new terminal window, then play with:  skaar"
     note "(or right now: $BIN_DIR/skaar)"
