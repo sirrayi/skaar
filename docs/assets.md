@@ -20,7 +20,8 @@ Every file in `data/` must be listed here with its source and license.
 | `data/base/fonts/jbmono-*.{tga,fontinfo}` | Generated from `tools/fonts/jetbrainsmono/` | SIL OFL 1.1, license in `tools/fonts/jetbrainsmono/OFL.txt` |
 | `data/maps-src/*.json` | Original map sources, compiled by `tools/mapc` | GPLv2-or-later |
 
-Regenerate: `python3 tools/gen_assets.py` (needs `pip install pillow`).
+Regenerate: `python3 tools/gen_assets.py` (needs `pip install pillow==11.3.0`; the font atlases
+are Pillow-version sensitive, see `docs/deps.md`).
 
 ## Candidate free sources (to check per file before use)
 - OpenArena: game data is mostly GPLv2, but some files have other licenses. Check each file's credits before importing.
