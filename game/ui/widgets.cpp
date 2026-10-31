@@ -528,14 +528,25 @@ bool ChoiceRow(float y, const char* label, const char* cvar, const std::vector<s
     bool changed = false;
     if (dir && !choices.empty()) {
         if (index < 0) {
-            // an unknown value (com_maxfps 250, a hex colour): step from where it
-            // would sit in the list instead of overwriting it with the first entry
-            index = 0;
+            // an unknown value (com_maxfps 250, a hex colour): step to the nearest
+            // entry on the side the key points to, so Right still reads as "up",
+            // and hold at the end of the list when the value is past every entry
+            const double cur = std::atof(current.c_str());
+            double pickVal = 0;
+            int pick = -1;  // nearest entry above (Right) or below (Left)
+            int end = 0;    // the list's own top or bottom
             for (size_t i = 0; i < choices.size(); i++) {
-                if (std::atof(choices[i].first.c_str()) <= std::atof(current.c_str())) {
-                    index = static_cast<int>(i);
+                const double c = std::atof(choices[i].first.c_str());
+                const double e = std::atof(choices[end].first.c_str());
+                if (dir > 0 ? c > e : c < e) {
+                    end = static_cast<int>(i);
+                }
+                if ((dir > 0 ? c > cur : c < cur) && (pick < 0 || (dir > 0 ? c < pickVal : c > pickVal))) {
+                    pick = static_cast<int>(i);
+                    pickVal = c;
                 }
             }
+            index = pick < 0 ? end : pick;
         } else {
             index = (index + dir + static_cast<int>(choices.size())) % static_cast<int>(choices.size());
         }
