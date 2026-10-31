@@ -6,6 +6,11 @@
 #      loaded the map, or the log has ERROR / ASSERT / sanitizer reports
 #   SMOKE_SECONDS=20 SMOKE_MAP=testroom ./scripts/smoke.sh
 set -eu
+# An automated run: its own fs_homepath, or the +set values below (com_pipefile
+# is CVAR_ARCHIVE) get written into the human's config. Must be set before
+# lib.sh picks HOMEDIR up (.gitignore covers /.home-*/; the engine makes the dir)
+SKAAR_DEV_HOME=${SKAAR_DEV_HOME:-"$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/.home-smoke"}
+export SKAAR_DEV_HOME
 . "$(dirname -- "$0")/lib.sh"
 
 SECONDS_TO_RUN=${SMOKE_SECONDS:-20}
