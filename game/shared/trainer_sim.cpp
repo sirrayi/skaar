@@ -12,6 +12,11 @@ constexpr float kPi = 3.14159265358979f;
 constexpr float kDeg = 180.0f / kPi;
 constexpr float kNever = std::numeric_limits<float>::infinity();
 constexpr float kTrackSampleInterval = 0.05f;  // hold mode: aim-error samples at 20 Hz
+// One Advance() walks every direction change it skipped past (changeEvery is at
+// least 0.05 s, so 600 s of run time needs 12,000) plus the wall bounces between
+// them. targets.speed is unbounded, so the walk keeps a ceiling: a target that
+// needs more stops where its motion got to instead of stalling inside the span.
+constexpr int kMaxStepEvents = 100000;
 
 uint32_t Mix(uint32_t x) {
     // lowbias32 hash, so neighbouring serials get unrelated streams
@@ -176,23 +181,26 @@ void TrainerSim::NewVelocity(Target& target) {
 void TrainerSim::MoveTo(Target& target, float t) {
     const auto& o = scenario_.targets;
     float& now = target.stateT;
-    for (int guard = 0; guard < 1000 && now < t; guard++) {
+    for (int guard = 0; guard < kMaxStepEvents && now < t; guard++) {
         const float end = std::min(t, target.nextChange);
+        // Time to each wall from now. Only a wall strictly ahead counts: with a
+        // zero-width window the crossing time is 0, and letting it win the tie
+        // would flip that axis every iteration and starve the other one.
+        const float yawWall = target.vyaw > 0 ? (o.yaw.max - target.yaw) / target.vyaw
+                              : target.vyaw < 0 ? (o.yaw.min - target.yaw) / target.vyaw
+                                                : kNever;
+        const float pitchWall = target.vpitch > 0 ? (o.pitch.max - target.pitch) / target.vpitch
+                                : target.vpitch < 0 ? (o.pitch.min - target.pitch) / target.vpitch
+                                                    : kNever;
         // earliest wall of the spawn window hit before `end`
         float hit = end;
         int axis = -1;
-        if (target.vyaw > 0 && now + (o.yaw.max - target.yaw) / target.vyaw < hit) {
-            hit = now + (o.yaw.max - target.yaw) / target.vyaw;
-            axis = 0;
-        } else if (target.vyaw < 0 && now + (o.yaw.min - target.yaw) / target.vyaw < hit) {
-            hit = now + (o.yaw.min - target.yaw) / target.vyaw;
+        if (yawWall > 0 && now + yawWall < hit) {
+            hit = now + yawWall;
             axis = 0;
         }
-        if (target.vpitch > 0 && now + (o.pitch.max - target.pitch) / target.vpitch < hit) {
-            hit = now + (o.pitch.max - target.pitch) / target.vpitch;
-            axis = 1;
-        } else if (target.vpitch < 0 && now + (o.pitch.min - target.pitch) / target.vpitch < hit) {
-            hit = now + (o.pitch.min - target.pitch) / target.vpitch;
+        if (pitchWall > 0 && now + pitchWall < hit) {
+            hit = now + pitchWall;
             axis = 1;
         }
         hit = std::max(hit, now);
@@ -211,7 +219,8 @@ void TrainerSim::MoveTo(Target& target, float t) {
             target.nextChange = now + target.rng.In(o.changeEvery);
         }
     }
-    now = std::max(now, t);
+    // No `now = max(now, t)` here: stateT must not claim a time whose events
+    // were not applied, or the motion depends on how the caller dices the axis.
 }
 
 void TrainerSim::Advance(float t) {
