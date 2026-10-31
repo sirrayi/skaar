@@ -48,6 +48,7 @@ install_portable_cmake() {
         url=https://github.com/Kitware/CMake/releases/download/v$CMAKE_PORTABLE
         mkdir -p "$TOOLS"
         tmp=$(mktemp -d "${TMPDIR:-/tmp}/skaar-cmake.XXXXXX")
+        trap 'rm -rf "$tmp"' EXIT INT TERM   # a failed download must not leave 50 MB behind
         curl -fsSL -o "$tmp/$pkg.tar.gz" "$url/$pkg.tar.gz" || die "CMake download failed"
         curl -fsSL -o "$tmp/sums.txt" "$url/cmake-$CMAKE_PORTABLE-SHA-256.txt" || die "CMake checksum download failed"
         want=$(awk -v f="$pkg.tar.gz" '$2 == f {print $1}' "$tmp/sums.txt")
