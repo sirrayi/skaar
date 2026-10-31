@@ -55,6 +55,7 @@ struct ClientState {
     int kills = 0;
     int deaths = 0;
     std::array<int, 16> reserve{};  // tac weapons: rounds outside the magazine, per slot
+    int lastShotMs = 0;      // command time of the last shot, unmasked (kStatLastShot is 16-bit)
     bool inSession = false;  // spawned on an arena map; written to stats/arena.jsonl at shutdown
     int sessionStart = 0;
 };

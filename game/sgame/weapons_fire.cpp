@@ -143,7 +143,12 @@ void FireBeam(gentity_t* player, const skaar::WeaponDef& w, const vec3_t muzzle,
 void FireTac(gentity_t* player, playerState_t& ps, const skaar::WeaponDef& w) {
     namespace arena = skaar::arena;
     const int now = ps.commandTime;
-    const int since = (now - ps.stats[arena::kStatLastShot]) & 0x7fff;
+    // kStatLastShot is networked as a signed 16-bit value, so the stat alone only knows the gap
+    // modulo 32768 ms: with a recoverMs of 32768 or more the spray never reset (the weapon
+    // stayed at its last shot for the rest of the map, and shot 0 never got its spread back),
+    // and a pause that wrapped aliased to a short one. Keep the real time server-side.
+    ClientState& cs = clients[player->s.number];
+    const int since = cs.lastShotMs ? now - cs.lastShotMs : 0;
     const bool reset = ps.stats[arena::kStatSpray] == 0 || since > w.recoilRecoverMs;
     const int index = reset ? 0 : ps.stats[arena::kStatSpray];
 
@@ -187,6 +192,7 @@ void FireTac(gentity_t* player, playerState_t& ps, const skaar::WeaponDef& w) {
 
     ps.stats[arena::kStatSpray] = std::min(index + 1, 32000);
     ps.stats[arena::kStatLastShot] = now & 0x7fff;
+    cs.lastShotMs = now;
 }
 
 void FireProjectile(gentity_t* player, const skaar::WeaponDef& w, const vec3_t muzzle, const vec3_t forward) {
