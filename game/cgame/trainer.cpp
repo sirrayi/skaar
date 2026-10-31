@@ -395,7 +395,9 @@ void ReplayNumbers(float* score, float* accuracy) {
     }
     *accuracy = n > 0 ? static_cast<float>(hits) / n : 0;
     const auto& sc = st.scenario.score;
-    if (st.scenario.fire == skaar::FireMode::kHold) {
+    // as the summary and the sim itself: a hold scenario with a weapon fires like a
+    // click run, and only a bare hold target has time on target to score
+    if (st.scenario.fire == skaar::FireMode::kHold && !st.sim.HasWeapon()) {
         // aim samples are 20 Hz while firing: each hit sample is ~0.05 s on target
         *score = hits * 0.05f * sc.perSecondOnTarget + st.sim.Kills() * sc.kill;
     } else {
