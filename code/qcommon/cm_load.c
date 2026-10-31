@@ -463,12 +463,28 @@ void CMod_LoadVisibility( lump_t *l ) {
 		Com_Memset( cm.visibility, 255, cm.clusterBytes );
 		return;
 	}
+	// a 1..VIS_HEADER-1 byte lump used to fall through to the copy below with a
+	// negative length, which Com_Memcpy takes as a ~2^64 byte copy
+	if ( len < VIS_HEADER ) {
+		Com_Error( ERR_DROP, "bad BSP: visibility lump is %i bytes, needs at least %i",
+			len, VIS_HEADER );
+	}
+
 	buf = cmod_base + l->fileofs;
+
+	cm.numClusters = LittleLong( ((int *)buf)[0] );
+	cm.clusterBytes = LittleLong( ((int *)buf)[1] );
+
+	// both come from the file and CM_ClusterPVS indexes
+	// visibility[ cluster * clusterBytes ], so they have to fit in the lump
+	if ( cm.numClusters < 0 || cm.clusterBytes < 0 ||
+			( cm.clusterBytes > 0 && cm.numClusters > ( len - VIS_HEADER ) / cm.clusterBytes ) ) {
+		Com_Error( ERR_DROP, "bad BSP: %i byte visibility lump cannot hold %i clusters of %i bytes",
+			len, cm.numClusters, cm.clusterBytes );
+	}
 
 	cm.vised = qtrue;
 	cm.visibility = Hunk_Alloc( len, h_high );
-	cm.numClusters = LittleLong( ((int *)buf)[0] );
-	cm.clusterBytes = LittleLong( ((int *)buf)[1] );
 	Com_Memcpy (cm.visibility, buf + VIS_HEADER, len - VIS_HEADER );
 }
 
