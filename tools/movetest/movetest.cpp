@@ -878,6 +878,12 @@ void TestSemiAuto() {
 }  // namespace
 
 int main(int argc, char** argv) {
+    if (argc < 2) {
+        // without the repo root the shipped-ruleset and tac checks used to just
+        // vanish, and the run still printed a green summary and exited 0
+        std::printf("usage: movetest <repo root>\n");
+        return 2;
+    }
     TestParity();
     TestGroundSpeed();
     TestStrafeJump();
@@ -889,10 +895,8 @@ int main(int argc, char** argv) {
     TestRulesetJson();
     TestWeaponRefire();
     TestSemiAuto();
-    if (argc > 1) {
-        TestShippedRulesets(argv[1]);
-        TestTac(argv[1]);
-    }
+    TestShippedRulesets(argv[1]);
+    TestTac(argv[1]);
     std::printf("\n%d passed, %d failed\n", g_passed, g_failed);
     return g_failed ? 1 : 0;
 }
