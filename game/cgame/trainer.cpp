@@ -432,7 +432,9 @@ void DrawSummary() {
     const kit::Fonts& f = kit::GetFonts();
     const RunSummary& s = st.last->summary;
     const float w = kit::Width(), h = kit::Height(), m = theme::kMargin;
-    const bool hold = st.scenario.fire == skaar::FireMode::kHold;
+    // The sim only tracks time on target for a hold scenario with no weapon: one
+    // with a weapon fires like a click scenario, so it must show the click cells.
+    const bool hold = st.scenario.fire == skaar::FireMode::kHold && !st.sim.HasWeapon();
 
     kit::Fill(0, 0, w, h, theme::kStage.Alpha(0.86f));
 
