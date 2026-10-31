@@ -118,11 +118,23 @@ struct Light {
     float sun = 0.55f;
 };
 
+// Every coordinate is rounded to int32 for the BSP and drives the light-grid
+// size, so bound them here, at the one door floats come in through.
+constexpr float kMaxCoord = 1.0e6f;
+
 Vec3 ReadVec3(const json& j, const char* what) {
     if (!j.is_array() || j.size() != 3) {
         throw std::runtime_error(std::string(what) + " must be an array of 3 numbers");
     }
-    return {j[0].get<float>(), j[1].get<float>(), j[2].get<float>()};
+    Vec3 out;
+    for (int i = 0; i < 3; i++) {
+        const float v = j[i].get<float>();
+        if (!std::isfinite(v) || std::fabs(v) > kMaxCoord) {
+            throw std::runtime_error(std::string(what) + " must be finite and within +/-1000000");
+        }
+        out[i] = v;
+    }
+    return out;
 }
 
 std::string FormatVec3(const Vec3& v) {
