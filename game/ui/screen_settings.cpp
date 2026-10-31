@@ -217,6 +217,8 @@ void DrawVideo(float top) {
         trap::CvarSet("r_mode", trap::CvarValue("r_fullscreen") != 0 ? "-2" : "-1");
     }
     y += kRowStep;
+    // both are CVAR_LATCH, but the row reads back the value it just wrote: UI_CVAR_SET
+    // is a forced set (cl_ui.c -> Cvar_SetSafe), so only the renderer waits for a restart
     ToggleRow(y, "Retina resolution", "r_allowHighDPI", "NEEDS APPLY");
     y += kRowStep;
     ToggleRow(y, "Vertical sync", "r_swapInterval", "NEEDS APPLY");
