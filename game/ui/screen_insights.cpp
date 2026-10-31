@@ -28,6 +28,13 @@ float Mean(const std::vector<float>& v) {
 
 std::string Pct(float f) { return skaar::Va("%.1f%%", f * 100); }
 
+// A record's times come from a file anyone can edit. Keep one inside the run before
+// it becomes a sample index, an allocation size or a plot width.
+float RunTime(float t, float duration) { return std::isfinite(t) ? std::clamp(t, 0.0f, duration) : 0.0f; }
+
+// The length of a record, bounded: docs/scenarios.md allows 5..600 seconds
+float RunDuration(float duration) { return std::isfinite(duration) ? std::clamp(duration, 1.0f, 600.0f) : 1.0f; }
+
 bool IsHold(const std::string& scenarioId) {
     const skaar::Scenario* s = data.FindScenario(scenarioId);
     return s && s->fire == skaar::FireMode::kHold;
@@ -327,10 +334,10 @@ std::vector<float> RollingTtk(const skaar::RunRecord& rec) {
 
 // Share of 20 Hz aim samples on target, in 2 s windows
 std::vector<float> OnTargetCurve(const skaar::RunRecord& rec, float duration) {
-    const int buckets = std::max(2, static_cast<int>(duration / 2));
+    const int buckets = std::clamp(static_cast<int>(RunDuration(duration) / 2), 2, 300);
     std::vector<float> on(buckets, 0), all(buckets, 0), pct;
     for (const skaar::ShotEvent& s : rec.shots) {
-        const int b = std::clamp(static_cast<int>(s.t / duration * buckets), 0, buckets - 1);
+        const int b = std::clamp(static_cast<int>(RunTime(s.t, duration) / duration * buckets), 0, buckets - 1);
         all[b]++;
         on[b] += s.hit ? 1 : 0;
     }
@@ -343,7 +350,7 @@ std::vector<float> OnTargetCurve(const skaar::RunRecord& rec, float duration) {
 void DrawTtkPanel(const Rect& r, const skaar::RunRecord& rec, bool hold, const skaar::RunRecord* other) {
     Label(r.x, r.y, hold ? "ON TARGET OVER THE RUN" : "TIME TO KILL OVER THE RUN");
     const Rect plot{r.x + 60, r.y + 40, r.w - 60, r.h - 80};
-    const float duration = std::max(1.0f, rec.summary.duration);
+    const float duration = RunDuration(rec.summary.duration);
 
     if (hold) {
         chart::YAxis(plot, 0, 100, 25, "%.0f");
@@ -368,21 +375,21 @@ void DrawTtkPanel(const Rect& r, const skaar::RunRecord& rec, bool hold, const s
         chart::YAxis(plot, lo, hi, step, "%.0f");
         std::vector<float> dots;
         for (const skaar::KillEvent& k : rec.kills) {
-            dots.push_back(plot.x + k.t / duration * plot.w);
+            dots.push_back(plot.x + RunTime(k.t, duration) / duration * plot.w);
             dots.push_back(plot.Bottom() - std::min(k.ttk, hi) / hi * plot.h);
         }
         chart::Dots(dots, 5, kDot);
         if (other && !other->kills.empty()) {
             // the comparison run's rolling mean, faint, on the same scale and time axis
-            const float d = std::max(1.0f, other->summary.duration);
-            const float ox0 = plot.x + other->kills.front().t / d * plot.w;
-            const float ox1 = plot.x + other->kills.back().t / d * plot.w;
+            const float d = RunDuration(other->summary.duration);
+            const float ox0 = plot.x + RunTime(other->kills.front().t, d) / d * plot.w;
+            const float ox1 = plot.x + RunTime(other->kills.back().t, d) / d * plot.w;
             chart::Curve({ox0, plot.y, std::max(1.0f, ox1 - ox0), plot.h}, RollingTtk(*other), lo, hi,
                          theme::kCreamFaint, 1.0f);
         }
         const std::vector<float> rolling = RollingTtk(rec);
-        const float x0 = plot.x + rec.kills.front().t / duration * plot.w;
-        const float x1 = plot.x + rec.kills.back().t / duration * plot.w;
+        const float x0 = plot.x + RunTime(rec.kills.front().t, duration) / duration * plot.w;
+        const float x1 = plot.x + RunTime(rec.kills.back().t, duration) / duration * plot.w;
         chart::Curve({x0, plot.y, std::max(1.0f, x1 - x0), plot.h}, rolling, lo, hi, theme::kCream, 2.0f);
         // first vs last third: do you slow down?
         const size_t third = ttks.size() / 3;
@@ -487,10 +494,11 @@ void DrawPathPanel(const Rect& r, const skaar::RunRecord& rec) {
         xy.push_back(toY(s[i].pitch));
     }
     chart::Polyline(xy, theme::kCream.Alpha(0.35f), 1);
-    // where the view was at each kill
+    // where the view was at each kill (kill.t is from the file: bound the index it maps to)
+    const float lastSample = static_cast<float>(s.size() - 1) / skaar::kSampleHz;
     std::vector<float> killDots;
     for (const skaar::KillEvent& kill : rec.kills) {
-        const size_t i = std::min(s.size() - 1, static_cast<size_t>(kill.t * skaar::kSampleHz));
+        const size_t i = std::min(s.size() - 1, static_cast<size_t>(RunTime(kill.t, lastSample) * skaar::kSampleHz));
         killDots.push_back(toX(skaar::AngleDelta(s[i].yaw, yaw0)));
         killDots.push_back(toY(s[i].pitch));
     }
