@@ -182,6 +182,20 @@ void TrainerSim::MoveTo(Target& target, float t) {
     const auto& o = scenario_.targets;
     float& now = target.stateT;
     for (int guard = 0; guard < kMaxStepEvents && now < t; guard++) {
+        // A target already standing on the wall it travels into has a crossing time
+        // of 0, so the walk below would never pick it and it would ride that edge
+        // until its next direction change. Bounce it here, consuming no time. A
+        // window that is a point sits on both bounds at once, so it is left alone:
+        // flipping it would flip forever, which is the freeze the `> 0` test below
+        // exists to avoid, and an axis with no width cannot move anyway.
+        if (o.yaw.min < o.yaw.max && ((target.vyaw > 0 && target.yaw >= o.yaw.max) ||
+                                      (target.vyaw < 0 && target.yaw <= o.yaw.min))) {
+            target.vyaw = -target.vyaw;
+        }
+        if (o.pitch.min < o.pitch.max && ((target.vpitch > 0 && target.pitch >= o.pitch.max) ||
+                                          (target.vpitch < 0 && target.pitch <= o.pitch.min))) {
+            target.vpitch = -target.vpitch;
+        }
         const float end = std::min(t, target.nextChange);
         // Time to each wall from now. Only a wall strictly ahead counts: with a
         // zero-width window the crossing time is 0, and letting it win the tie

@@ -131,6 +131,40 @@ TEST("a spawn window that is a point on one axis still moves on the other") {
     CHECK_NEAR(once.Targets()[0].pitch, sim.Targets()[0].pitch, 0.01);
 }
 
+TEST("a target that lands on a spawn-window edge bounces off it") {
+    // A float rounding loss can leave a target exactly on a bound with its velocity
+    // still pointing out: the crossing from there is 0, so a wall that only counts
+    // when it is strictly ahead never bounces it and that axis is lost until the
+    // next direction change. At 125 Hz, seed 167 rode pitch.max for 104 commands
+    // (0.83 s) at 16.1 deg/s of travel. The one command whose step lost the crossing
+    // may end on the edge; the next one has to leave it, so no two in a row may sit
+    // there.
+    const Scenario sc = Make(kStrafe);
+    const auto& o = sc.targets;
+    auto atEdge = [&o](const Target& t) {
+        return (t.vyaw > 0 && t.yaw >= o.yaw.max) || (t.vyaw < 0 && t.yaw <= o.yaw.min) ||
+               (t.vpitch > 0 && t.pitch >= o.pitch.max) || (t.vpitch < 0 && t.pitch <= o.pitch.min);
+    };
+    int longest = 0;
+    for (uint32_t seed = 1; seed <= 200; seed++) {
+        TrainerSim sim;
+        sim.Start(sc, seed, kEye, 0);
+        int streak = 0;
+        for (int i = 1; i <= 30 * 125; i++) {
+            sim.Advance(i / 125.0f);
+            bool pinned = false;
+            for (const Target& t : sim.Targets()) {
+                pinned = pinned || (t.alive && atEdge(t));
+            }
+            streak = pinned ? streak + 1 : 0;
+            longest = std::max(longest, streak);
+        }
+    }
+    if (longest > 1) {
+        check::Fail(__FILE__, __LINE__, "a target rode a spawn-window edge for " + std::to_string(longest) + " commands");
+    }
+}
+
 TEST("moving targets stay inside the spawn window") {
     const Scenario sc = Make(kStrafe);
     TrainerSim sim;
