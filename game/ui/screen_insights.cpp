@@ -234,8 +234,18 @@ void DrawScenarios(float top) {
     }
 
     const float listW = 480, rowH = 70;
-    const Rect view{m - 40, top, listW + 40, h - top - 130};
-    const float scroll = Scroll("insights-scenarios", view, list.size() * rowH, -1, -1, rowH);
+    // a whole number of rows tall, so a row is never half in view
+    const float listH = std::floor((h - top - 130) / rowH) * rowH;
+    const Rect view{m - 40, top, listW + 40, listH};
+    const int firstId = ui.focusCount;
+    float focusTop = -1, focusBottom = -1;
+    for (size_t i = 0; i < list.size(); i++) {
+        if (ui.focus == firstId + static_cast<int>(i)) {
+            focusTop = i * rowH;
+            focusBottom = focusTop + rowH;
+        }
+    }
+    const float scroll = Scroll("insights-scenarios", view, list.size() * rowH, focusTop, focusBottom, rowH);
     for (size_t i = 0; i < list.size(); i++) {
         const insights::ScenarioStats& s = *list[i];
         const float y = top + i * rowH - scroll;
