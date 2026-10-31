@@ -85,10 +85,17 @@ long long Dev_Microseconds( void ) {
 	LARGE_INTEGER now;
 
 	if ( !freq.QuadPart ) {
-		QueryPerformanceFrequency( &freq );
+		if ( !QueryPerformanceFrequency( &freq ) || !freq.QuadPart ) {
+			// no usable counter: callers compare this clock with itself, so 0
+			// is better than a division by zero
+			return 0;
+		}
 	}
 	QueryPerformanceCounter( &now );
-	return now.QuadPart * 1000000LL / freq.QuadPart;
+	// split the multiply: QPF is the TSC rate (GHz) on some systems, where
+	// now * 1000000 overflows int64 after an hour of uptime
+	return ( now.QuadPart / freq.QuadPart ) * 1000000LL +
+		( now.QuadPart % freq.QuadPart ) * 1000000LL / freq.QuadPart;
 #else
 	struct timespec ts;
 
