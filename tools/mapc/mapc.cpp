@@ -143,6 +143,24 @@ std::string FormatVec3(const Vec3& v) {
     return buf;
 }
 
+// A Q3 entity lump has no escape syntax: COM_ParseExt ends a quoted token at the
+// next quote or newline, so either character inside a value mis-tokenises the
+// whole lump and the game module drops the map. q3map2 substitutes, so do we.
+std::string EntitySafe(const std::string& s) {
+    std::string out;
+    out.reserve(s.size());
+    for (const char c : s) {
+        if (c == '"') {
+            out.push_back('\'');
+        } else if (static_cast<unsigned char>(c) < 0x20) {
+            out.push_back(' ');
+        } else {
+            out.push_back(c);
+        }
+    }
+    return out;
+}
+
 // "room": hollow box built from six wall brushes around an interior volume
 void AddRoom(const json& room, std::vector<Box>& boxes) {
     const Vec3 mn = ReadVec3(room.at("min"), "room.min");
@@ -625,7 +643,7 @@ private:
     }
 
     std::string EntityString() const {
-        std::string out = "{\n\"classname\" \"worldspawn\"\n\"message\" \"" + message_ + "\"\n}\n";
+        std::string out = "{\n\"classname\" \"worldspawn\"\n\"message\" \"" + EntitySafe(message_) + "\"\n}\n";
         for (size_t e = 0; e < entities_.size(); e++) {
             const json& ent = entities_[e];
             out += "{\n";
@@ -646,7 +664,7 @@ private:
                 } else {
                     text = value.dump();
                 }
-                out += "\"" + key + "\" \"" + text + "\"\n";
+                out += "\"" + EntitySafe(key) + "\" \"" + EntitySafe(text) + "\"\n";
             }
             out += "}\n";
         }
