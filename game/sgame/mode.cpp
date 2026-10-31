@@ -156,7 +156,13 @@ bool KeyVector(const EntityKeys& keys, const char* key, vec3_t out) {
         return false;
     }
     std::istringstream in(it->second);
-    return static_cast<bool>(in >> out[0] >> out[1] >> out[2]);
+    if (!(in >> out[0] >> out[1] >> out[2])) {
+        return false;
+    }
+    // items and dummies are linked and snapped like the spawn points: a "1e30 0 40" origin
+    // is UB in the entity-delta writer and in the client's lightgrid lookup
+    ClampCoords(out);
+    return true;
 }
 
 gentity_t* TempEvent(const vec3_t origin, int event, int eventParm) {
