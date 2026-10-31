@@ -2,6 +2,11 @@
 #include "scenario.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <type_traits>
 
 #include "json.hpp"
 
@@ -10,17 +15,30 @@ namespace {
 
 using json = nlohmann::json;
 
+// A JSON number as a float. Checked while it is still a double: narrowing an
+// out-of-float-range value is UB, and the value would only be rejected later.
+float Number(const json& v, const char* key) {
+    if (!v.is_number()) {
+        throw std::runtime_error(std::string(key) + " must be a number");
+    }
+    const double d = v.get<double>();
+    if (!std::isfinite(d) || std::fabs(d) > static_cast<double>(std::numeric_limits<float>::max())) {
+        throw std::runtime_error(std::string(key) + " is out of range");
+    }
+    return static_cast<float>(d);
+}
+
 Range ReadRange(const json& j, const char* key, Range fallback) {
     if (!j.contains(key)) {
         return fallback;
     }
     const json& v = j.at(key);
     if (v.is_number()) {
-        const float f = v.get<float>();
+        const float f = Number(v, key);
         return {f, f};
     }
     if (v.is_array() && v.size() == 2) {
-        Range r{v[0].get<float>(), v[1].get<float>()};
+        Range r{Number(v[0], key), Number(v[1], key)};
         if (r.min > r.max) {
             std::swap(r.min, r.max);
         }
@@ -31,7 +49,27 @@ Range ReadRange(const json& j, const char* key, Range fallback) {
 
 template <typename T>
 T Get(const json& j, const char* key, T fallback) {
-    return j.contains(key) ? j.at(key).get<T>() : fallback;
+    if (!j.contains(key)) {
+        return fallback;
+    }
+    const json& v = j.at(key);
+    if constexpr (std::is_floating_point_v<T>) {
+        return static_cast<T>(Number(v, key));
+    } else if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>) {
+        // get<int>() narrows with no range test: UB for an out-of-range number and
+        // a silent truncation for a fractional one
+        if (!v.is_number_integer()) {
+            throw std::runtime_error(std::string(key) + " must be a whole number");
+        }
+        const int64_t n = v.get<int64_t>();
+        if (n < static_cast<int64_t>(std::numeric_limits<T>::min()) ||
+            n > static_cast<int64_t>(std::numeric_limits<T>::max())) {
+            throw std::runtime_error(std::string(key) + " is out of range");
+        }
+        return static_cast<T>(n);
+    } else {
+        return v.get<T>();
+    }
 }
 
 json ParseJson(std::string_view text) {
@@ -44,18 +82,30 @@ json ParseJson(std::string_view text) {
 bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, std::string& error) {
     try {
         const json j = ParseJson(text);
+        if (!j.is_object()) {
+            throw std::runtime_error("a scenario must be a JSON object");
+        }
         Scenario s;
         s.id = id;
         s.name = Get<std::string>(j, "name", s.id);
         s.category = Get<std::string>(j, "category", "click");
         s.description = Get<std::string>(j, "description", "");
         s.map = Get<std::string>(j, "map", s.map);
+        // it ends up in a console command ("map %s"): keep it to a plain map name
+        if (s.map.empty() || s.map.size() > 32 ||
+            s.map.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-_") != std::string::npos) {
+            throw std::runtime_error("map must be a lowercase map name like \"range\"");
+        }
         s.duration = Get<float>(j, "duration", s.duration);
         s.seed = Get<uint32_t>(j, "seed", 0);
 
         if (j.contains("player")) {
-            s.playerMove = Get<bool>(j.at("player"), "move", false);
-            s.ruleset = Get<std::string>(j.at("player"), "ruleset", s.ruleset);
+            const json& player = j.at("player");
+            if (!player.is_object()) {
+                throw std::runtime_error("player must be an object");
+            }
+            s.playerMove = Get<bool>(player, "move", false);
+            s.ruleset = Get<std::string>(player, "ruleset", s.ruleset);
             // it ends up in a cvar and a file name: keep it to a plain id
             if (s.ruleset.empty() || s.ruleset.size() > 32 ||
                 s.ruleset.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-_") != std::string::npos) {
@@ -79,6 +129,9 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
 
         if (j.contains("targets")) {
             const json& t = j.at("targets");
+            if (!t.is_object()) {
+                throw std::runtime_error("targets must be an object");
+            }
             auto& o = s.targets;
             o.alive = Get<int>(t, "alive", o.alive);
             o.radius = Get<float>(t, "radius", o.radius);
@@ -87,6 +140,9 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
 
             if (t.contains("spawn")) {
                 const json& sp = t.at("spawn");
+                if (!sp.is_object()) {
+                    throw std::runtime_error("targets.spawn must be an object");
+                }
                 const std::string shape = Get<std::string>(sp, "shape", "cone");
                 if (shape == "cone") {
                     o.shape = SpawnShape::kCone;
@@ -103,6 +159,9 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
             }
             if (t.contains("motion")) {
                 const json& m = t.at("motion");
+                if (!m.is_object()) {
+                    throw std::runtime_error("targets.motion must be an object");
+                }
                 const std::string type = Get<std::string>(m, "type", "static");
                 if (type == "static") {
                     o.motion = MotionType::kStatic;
@@ -120,6 +179,9 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
 
         if (j.contains("score")) {
             const json& sc = j.at("score");
+            if (!sc.is_object()) {
+                throw std::runtime_error("score must be an object");
+            }
             s.score.kill = Get<float>(sc, "kill", s.score.kill);
             s.score.accuracyWeight = Get<float>(sc, "accuracyWeight", s.score.accuracyWeight);
             s.score.perSecondOnTarget = Get<float>(sc, "perSecondOnTarget", s.score.perSecondOnTarget);
@@ -141,14 +203,23 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
         if (s.targets.distance.min < 64) {
             throw std::runtime_error("targets.spawn.distance must be >= 64");
         }
-        if (s.targets.cols < 1 || s.targets.rows < 1 || s.targets.cols * s.targets.rows > 256) {
+        if (s.targets.cols < 1 || s.targets.rows < 1 ||
+            static_cast<int64_t>(s.targets.cols) * s.targets.rows > 256) {
             throw std::runtime_error("targets.spawn cols/rows out of range");
         }
-        if (s.targets.shape == SpawnShape::kGrid && s.targets.cols * s.targets.rows <= s.targets.alive) {
+        // widened too: the product of two accepted values is then <= 256, so the sim's
+        // int `cells = cols * rows` cannot overflow either
+        if (s.targets.shape == SpawnShape::kGrid &&
+            static_cast<int64_t>(s.targets.cols) * s.targets.rows <= s.targets.alive) {
             throw std::runtime_error("a grid needs more cells than targets.alive");
         }
         if (s.targets.changeEvery.min < 0.05f) {
             throw std::runtime_error("motion.changeEvery must be >= 0.05");
+        }
+        if (!(s.targets.lifetime >= 0) ||  // also rejects NaN
+            (s.targets.lifetime > 0 && s.targets.lifetime < 0.05f)) {
+            // a tiny lifetime stalls the respawn loop: spawnT + lifetime stops advancing
+            throw std::runtime_error("targets.lifetime must be 0 (never) or >= 0.05 seconds");
         }
 
         out = std::move(s);
@@ -162,23 +233,22 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
 std::string ScenarioToJson(const Scenario& s) {
     auto range = [](Range r) { return r.min == r.max ? json(r.min) : json::array({r.min, r.max}); };
     const auto& t = s.targets;
+    // every field is written, so ParseScenario(ScenarioToJson(s)) gives s back
     json spawn = {{"shape", t.shape == SpawnShape::kGrid ? "grid" : "cone"},
                   {"distance", range(t.distance)},
                   {"yaw", range(t.yaw)},
-                  {"pitch", range(t.pitch)}};
-    if (t.shape == SpawnShape::kGrid) {
-        spawn["cols"] = t.cols;
-        spawn["rows"] = t.rows;
+                  {"pitch", range(t.pitch)},
+                  {"cols", t.cols},
+                  {"rows", t.rows}};
+    const char* motion = "static";
+    if (t.motion == MotionType::kStrafe) {
+        motion = "strafe";
+    } else if (t.motion == MotionType::kFloat) {
+        motion = "float";
     }
-    json targets = {{"alive", t.alive}, {"radius", t.radius}, {"health", t.health}, {"spawn", spawn}};
-    if (t.lifetime > 0) {
-        targets["lifetime"] = t.lifetime;
-    }
-    if (t.motion != MotionType::kStatic) {
-        targets["motion"] = {{"type", t.motion == MotionType::kStrafe ? "strafe" : "float"},
-                             {"speed", range(t.speed)},
-                             {"changeEvery", range(t.changeEvery)}};
-    }
+    json motionBlock = {{"type", motion}, {"speed", range(t.speed)}, {"changeEvery", range(t.changeEvery)}};
+    json targets = {{"alive", t.alive}, {"radius", t.radius}, {"health", t.health}, {"lifetime", t.lifetime},
+                    {"spawn", spawn}, {"motion", motionBlock}};
     json j = {
         {"name", s.name},
         {"category", s.category},
@@ -199,7 +269,9 @@ std::string ScenarioToJson(const Scenario& s) {
     if (!s.weapon.empty()) {
         j["weapon"] = s.weapon;
     }
-    return j.dump(2) + "\n";
+    // a scenario id or name can come from a pack file name, which need not be UTF-8:
+    // replace the bytes rather than throw out of the ui's save path
+    return j.dump(2, ' ', false, json::error_handler_t::replace) + "\n";
 }
 
 bool ParseBenchmark(std::string_view id, std::string_view text, Benchmark& out, std::string& error) {
@@ -216,9 +288,12 @@ bool ParseBenchmark(std::string_view id, std::string_view text, Benchmark& out, 
         for (const json& e : j.at("scenarios")) {
             Benchmark::Entry entry;
             entry.scenario = e.at("id").get<std::string>();
-            entry.thresholds = e.at("thresholds").get<std::vector<float>>();
-            if (entry.thresholds.size() != b.tiers.size()) {
+            const json& thresholds = e.at("thresholds");
+            if (!thresholds.is_array() || thresholds.size() != b.tiers.size()) {
                 throw std::runtime_error(entry.scenario + ": thresholds must match tiers");
+            }
+            for (const json& t : thresholds) {
+                entry.thresholds.push_back(Number(t, "threshold"));
             }
             if (!std::is_sorted(entry.thresholds.begin(), entry.thresholds.end())) {
                 throw std::runtime_error(entry.scenario + ": thresholds must ascend");

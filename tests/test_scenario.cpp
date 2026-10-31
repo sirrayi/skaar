@@ -78,6 +78,30 @@ TEST("bad scenarios are rejected with a reason") {
         R"({"player": {"ruleset": "cpm; quit"}})",
         R"({"player": {"ruleset": ""}})",
         R"(not json)",
+        // cols * rows used to overflow int (16777217 * 256 wraps to 256) and pass
+        R"({"targets": {"spawn": {"cols": 16777217, "rows": 256}}})",
+        R"({"targets": {"spawn": {"shape": "grid", "cols": 46341, "rows": 46341}}})",
+        // a JSON number that is not a whole int: float->int was UB, then truncated
+        R"({"targets": {"alive": 1e30}})",
+        R"({"targets": {"alive": 3.9}})",
+        R"({"targets": {"spawn": {"cols": 1e12, "rows": 1}}})",
+        // pasted into "map %s": a separator would run the next console command
+        R"({"map": "range; seta rcon_password pwned"})",
+        R"({"map": "range\nquit"})",
+        R"({"map": ""})",
+        // a tiny lifetime stalls TrainerSim::Advance on its respawn loop
+        R"({"targets": {"lifetime": 0.001}})",
+        R"({"targets": {"lifetime": -3}})",
+        // a non-object block was silently ignored, so the file loaded with defaults
+        R"([1, 2, 3])",
+        R"("hello")",
+        R"(5)",
+        R"(null)",
+        R"({"targets": [{"alive": 4}]})",
+        R"({"targets": 5})",
+        R"({"targets": {"spawn": 7}})",
+        R"({"score": "lot"})",
+        R"({"player": []})",
     };
     for (const char* text : bad) {
         Scenario s;
@@ -107,6 +131,16 @@ TEST("benchmark tiers and progress") {
     CHECK(!ParseBenchmark("b", R"({"tiers": ["a", "b"], "scenarios": [{"id": "s", "thresholds": [10]}]})", b, error));
 }
 
+TEST("lifetime: 0 means never, tiny nonzero values are rejected") {
+    Scenario s;
+    std::string error;
+    CHECK(ParseScenario("x", R"({"targets": {"lifetime": 0}})", s, error));
+    CHECK_NEAR(s.targets.lifetime, 0, 0);
+    CHECK(ParseScenario("x", R"({"targets": {"lifetime": 0.05}})", s, error));
+    CHECK(ParseScenario("x", R"({"targets": {"lifetime": 30}})", s, error));
+    CHECK_NEAR(s.targets.lifetime, 30, 1e-6);
+}
+
 TEST("scenario JSON round trip (the in-game editor saves with it)") {
     for (const auto& e : std::filesystem::directory_iterator(kData / "scenarios")) {
         Scenario a, b;
@@ -118,4 +152,41 @@ TEST("scenario JSON round trip (the in-game editor saves with it)") {
         CHECK(a.targets.motion == b.targets.motion && a.playerMove == b.playerMove && a.ruleset == b.ruleset);
         CHECK_NEAR(a.targets.speed.max, b.targets.speed.max, 1e-4);
     }
+}
+
+TEST("round trip keeps the fields no shape or motion needs") {
+    // the writer used to omit cols/rows for a cone and speed/changeEvery for a static
+    // target, so a save in the editor silently reset them
+    Scenario a, b;
+    std::string error;
+    CHECK(ParseScenario("x", R"({"name": "Kept", "duration": 30,"targets": {
+        "alive": 2, "radius": 20, "health": 3, "lifetime": 2.5,
+        "spawn": {"shape": "cone", "cols": 7, "rows": 9, "distance": [500, 900]},
+        "motion": {"type": "static", "speed": [100, 200], "changeEvery": [0.3, 0.9]}},
+        "score": {"kill": 50, "accuracyWeight": 0.25, "perSecondOnTarget": 75}})", a, error));
+    CHECK(ParseScenario("x", ScenarioToJson(a), b, error));
+    CHECK(a.targets.cols == b.targets.cols && a.targets.rows == b.targets.rows);
+    CHECK_NEAR(a.targets.lifetime, b.targets.lifetime, 0);
+    CHECK(a.targets.motion == b.targets.motion && a.targets.shape == b.targets.shape);
+    CHECK_NEAR(a.targets.speed.min, b.targets.speed.min, 1e-4);
+    CHECK_NEAR(a.targets.changeEvery.max, b.targets.changeEvery.max, 1e-4);
+    CHECK_NEAR(b.targets.speed.max, 200, 1e-4);
+    CHECK_NEAR(a.score.accuracyWeight, b.score.accuracyWeight, 1e-6);
+    // and a grid keeps its cells
+    CHECK(ParseScenario("x", R"({"targets": {"alive": 4, "spawn": {"shape": "grid", "cols": 3, "rows": 4}}})", a,
+                        error));
+    CHECK(ParseScenario("x", ScenarioToJson(a), b, error));
+    CHECK(b.targets.shape == SpawnShape::kGrid && b.targets.cols == 3 && b.targets.rows == 4);
+}
+
+TEST("saving a scenario whose name is not UTF-8 does not throw") {
+    // a pack entry name is arbitrary bytes, and the name defaults to it
+    Scenario s;
+    std::string error;
+    CHECK(ParseScenario("caf\xe9", "{}", s, error));
+    CHECK(s.name.size() == 4);
+    const std::string text = ScenarioToJson(s);  // used to throw type_error.316
+    CHECK(!text.empty() && text.back() == '\n');
+    Scenario back;
+    CHECK(ParseScenario("caf\xe9", text, back, error));  // still readable JSON
 }
