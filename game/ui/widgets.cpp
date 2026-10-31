@@ -366,7 +366,9 @@ void CellGrid(float x, float y, float cellW, float cellH, int cols, int count) {
 }
 
 std::string FormatDuration(float seconds) {
-    const int s = static_cast<int>(seconds + 0.5f);
+    // comes straight out of stats files the player can edit: bound it before the cast
+    const float safe = std::isfinite(seconds) ? std::clamp(seconds, 0.0f, 359999.0f) : 0.0f;
+    const int s = static_cast<int>(safe + 0.5f);
     if (s >= 3600) {
         return skaar::Va("%d h %02d m", s / 3600, (s / 60) % 60);
     }
@@ -512,7 +514,7 @@ bool ChoiceRow(float y, const char* label, const char* cvar, const std::vector<s
                const std::string& hint) {
     RowLayout row = BeginRow(y, label, hint);
     const std::string current = trap::CvarString(cvar);
-    int index = 0;
+    int index = -1;  // -1: the cvar holds a value this row doesn't offer
     for (size_t i = 0; i < choices.size(); i++) {
         if (choices[i].first == current) {
             index = static_cast<int>(i);
@@ -525,16 +527,30 @@ bool ChoiceRow(float y, const char* label, const char* cvar, const std::vector<s
     }
     bool changed = false;
     if (dir && !choices.empty()) {
-        index = (index + dir + static_cast<int>(choices.size())) % static_cast<int>(choices.size());
+        if (index < 0) {
+            // an unknown value (com_maxfps 250, a hex colour): step from where it
+            // would sit in the list instead of overwriting it with the first entry
+            index = 0;
+            for (size_t i = 0; i < choices.size(); i++) {
+                if (std::atof(choices[i].first.c_str()) <= std::atof(current.c_str())) {
+                    index = static_cast<int>(i);
+                }
+            }
+        } else {
+            index = (index + dir + static_cast<int>(choices.size())) % static_cast<int>(choices.size());
+        }
         trap::CvarSet(cvar, choices[index].first.c_str());
         changed = true;
     }
     const kit::Font& mono = kit::GetFonts().mono;
     const Color arrow = row.focused ? theme::kCreamSoft : theme::kCreamFaint;
+    // nothing matched: show the value the cvar really holds rather than entry 0
+    const std::string shown = choices.empty() ? "—"
+                              : index < 0    ? kit::Upper(current)
+                                             : kit::Upper(choices[index].second);
     mono.Draw(row.controlX, row.baseline, 24, "←", arrow);
-    mono.Draw(row.controlX + 44, row.baseline, 24, choices.empty() ? "—" : kit::Upper(choices[index].second),
-              theme::kCream, 0.08f);
-    const float w = choices.empty() ? 20 : mono.Measure(24, kit::Upper(choices[index].second), 0.08f);
+    mono.Draw(row.controlX + 44, row.baseline, 24, shown, theme::kCream, 0.08f);
+    const float w = choices.empty() ? 20 : mono.Measure(24, shown, 0.08f);
     mono.Draw(row.controlX + 44 + w + 24, row.baseline, 24, "→", arrow);
     return changed;
 }
