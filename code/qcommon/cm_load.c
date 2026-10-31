@@ -70,6 +70,7 @@ cbrush_t	*box_brush;
 
 
 
+void	CM_InitBoxSides (void);
 void	CM_InitBoxHull (void);
 void	CM_FloodAreaConnections (void);
 
@@ -825,6 +826,8 @@ void CM_LoadMap( const char *name, qboolean clientload, int *checksum ) {
 	CMod_LoadLeafSurfaces (&header.lumps[LUMP_LEAFSURFACES]);
 	CMod_LoadPlanes (&header.lumps[LUMP_PLANES]);
 	CMod_LoadBrushSides (&header.lumps[LUMP_BRUSHSIDES]);
+	// the spare sides CM_BoundBrush may read have to exist before any brush
+	CM_InitBoxSides ();
 	CMod_LoadBrushes (&header.lumps[LUMP_BRUSHES]);
 	CMod_LoadSubmodels (&header.lumps[LUMP_MODELS]);
 	CMod_LoadNodes (&header.lumps[LUMP_NODES]);
@@ -925,13 +928,18 @@ int		CM_LeafArea( int leafnum ) {
 
 /*
 ===================
-CM_InitBoxHull
+CM_InitBoxSides
 
-Set up the planes and nodes so that the six floats of a bounding box
-can just be stored out and get a proper clipping hull structure.
+Point the BOX_SIDES spare brush sides at the box planes.
+
+CM_BoundBrush reads six sides from every brush even when the brush has fewer,
+which is legal (a four plane brush is fine), so the overread runs into these
+spare slots. They have to be set up before the first CMod_LoadBrushes, not with
+the rest of the box hull afterwards, or a short brush bounds against whatever
+the hunk happened to hold.
 ===================
 */
-void CM_InitBoxHull (void)
+void CM_InitBoxSides (void)
 {
 	int			i;
 	int			side;
@@ -940,17 +948,7 @@ void CM_InitBoxHull (void)
 
 	box_planes = &cm.planes[cm.numPlanes];
 
-	box_brush = &cm.brushes[cm.numBrushes];
-	box_brush->numsides = 6;
-	box_brush->sides = cm.brushsides + cm.numBrushSides;
-	box_brush->contents = CONTENTS_BODY;
-
-	box_model.leaf.numLeafBrushes = 1;
-//	box_model.leaf.firstLeafBrush = cm.numBrushes;
-	box_model.leaf.firstLeafBrush = cm.numLeafBrushes;
-	cm.leafbrushes[cm.numLeafBrushes] = cm.numBrushes;
-
-	for (i=0 ; i<6 ; i++)
+	for (i=0 ; i<BOX_SIDES ; i++)
 	{
 		side = i&1;
 
@@ -973,7 +971,35 @@ void CM_InitBoxHull (void)
 		p->normal[i>>1] = -1;
 
 		SetPlaneSignbits( p );
-	}	
+	}
+
+	// only CM_TempBoxModel sets these distances, so a brush short enough to
+	// bound against them reads them before anything has run
+	for (i = 0 ; i < BOX_PLANES ; i++)
+	{
+		box_planes[i].dist = 0;
+	}
+}
+
+/*
+===================
+CM_InitBoxHull
+
+Set up the planes and nodes so that the six floats of a bounding box
+can just be stored out and get a proper clipping hull structure.
+===================
+*/
+void CM_InitBoxHull (void)
+{
+	box_brush = &cm.brushes[cm.numBrushes];
+	box_brush->numsides = 6;
+	box_brush->sides = cm.brushsides + cm.numBrushSides;
+	box_brush->contents = CONTENTS_BODY;
+
+	box_model.leaf.numLeafBrushes = 1;
+//	box_model.leaf.firstLeafBrush = cm.numBrushes;
+	box_model.leaf.firstLeafBrush = cm.numLeafBrushes;
+	cm.leafbrushes[cm.numLeafBrushes] = cm.numBrushes;
 }
 
 /*
