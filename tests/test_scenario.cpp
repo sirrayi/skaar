@@ -112,6 +112,21 @@ TEST("bad scenarios are rejected with a reason") {
     }
 }
 
+TEST("an integral float is still a whole number") {
+    // a hand-written file spells 4 as "4.0", and nlohmann truncated it before the
+    // integer check went in, so only a real fraction may be rejected
+    Scenario s;
+    std::string error;
+    CHECK(ParseScenario("x", R"({"duration": 60.0, "seed": 5.0,
+        "targets": {"alive": 4.0, "radius": 16.0, "spawn": {"cols": 2.0, "rows": 3.0}}})", s, error));
+    CHECK(s.targets.alive == 4 && s.targets.cols == 2 && s.targets.rows == 3);
+    CHECK_NEAR(s.duration, 60, 1e-6);
+    CHECK_NEAR(s.targets.radius, 16, 1e-6);
+    CHECK(s.seed == 5u);
+    CHECK(!ParseScenario("x", R"({"targets": {"alive": 4.5}})", s, error));
+    CHECK(!ParseScenario("x", R"({"seed": 4294967296.0})", s, error));  // one past uint32_t
+}
+
 TEST("benchmark tiers and progress") {
     Benchmark b;
     std::string error;

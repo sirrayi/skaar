@@ -90,17 +90,22 @@ T Get(const json& j, const char* key, T fallback) {
     if constexpr (std::is_floating_point_v<T>) {
         return static_cast<T>(Float(*it, key));
     } else if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>) {
+        if (!it->is_number()) {
+            throw std::runtime_error(std::string(key) + " must be a number");
+        }
         // get<int>() narrows with no range test: UB for an out-of-range number and
-        // a silent truncation for a fractional one
-        if (!it->is_number_integer()) {
+        // a silent truncation for a fractional one. A float is still a whole number
+        // when it is exactly integral -- a hand-written file spells 4 as 4.0 and
+        // nlohmann used to truncate it -- so only a genuine fraction is rejected.
+        const double d = it->get<double>();
+        if (!std::isfinite(d) || std::trunc(d) != d) {
             throw std::runtime_error(std::string(key) + " must be a whole number");
         }
-        const int64_t v = it->get<int64_t>();
-        if (v < static_cast<int64_t>(std::numeric_limits<T>::min()) ||
-            v > static_cast<int64_t>(std::numeric_limits<T>::max())) {
+        if (d < static_cast<double>(std::numeric_limits<T>::min()) ||
+            d > static_cast<double>(std::numeric_limits<T>::max())) {
             throw std::runtime_error(std::string(key) + " is out of range");
         }
-        return static_cast<T>(v);
+        return static_cast<T>(d);
     } else {
         return it->get<T>();
     }
