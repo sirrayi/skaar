@@ -28,8 +28,9 @@ constexpr float kArmorProtection = 0.66f;
 // damage is an int the game does arithmetic on; anything past this is nonsense data, and
 // 2147483647 itself is not representable as a float, so the clamp value stays well inside int
 constexpr float kMaxDamage = 1.0e9f;
-// knockback scales the whole push (WeaponDef::knockback); ten times Q3's is already absurd
-constexpr float kMaxKnockbackScale = 10.0f;
+// knockback scales the whole push (WeaponDef::knockback); the weapon parser accepts 0..100,
+// so the cap here has to be as wide or a "knockback": 50 pushes at a tenth of its value
+constexpr float kMaxKnockbackScale = 100.0f;
 
 void LoadWeapons() {
     skaar::ResetWeapons();
@@ -455,8 +456,8 @@ void Damage(gentity_t* target, gentity_t* inflictor, gentity_t* attacker, const 
     if (!Damageable(target) || damage <= 0) {
         return;
     }
-    // the weapon parser bounds knockback neither above nor below, and a non-finite or huge
-    // scale would land in ps.velocity (then in the snapped entity origin), so bound it here
+    // a per-weapon scale is bounded by the parser (0..100); a non-finite or huge one would
+    // land in ps.velocity (then in the snapped entity origin), so bound it here too
     knockbackScale = std::isfinite(knockbackScale) ? std::clamp(knockbackScale, 0.0f, kMaxKnockbackScale) : 1.0f;
     if (!target->client) {
         DamageDummy(target, attacker, dir, damage, dflags, knockbackScale);
