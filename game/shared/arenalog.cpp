@@ -1,6 +1,7 @@
 // This file is part of Skaar. GPLv2 or later.
 #include "arenalog.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -83,7 +84,8 @@ bool ArenaSessionFromJson(std::string_view line, ArenaSession& out) {
         }
         s.map = Get<std::string>(j, "map", "");
         s.ruleset = Get<std::string>(j, "ruleset", "vq3");
-        s.seconds = Get<float>(j, "seconds", 0);
+        // the same cast-and-format path as RunSummary::duration: keep it to one day
+        s.seconds = std::clamp(Get<float>(j, "seconds", 0), 0.0f, 86400.0f);
         s.damageDealt = Get<int>(j, "damageDealt", 0);
         s.damageTaken = Get<int>(j, "damageTaken", 0);
         s.kills = Get<int>(j, "kills", 0);

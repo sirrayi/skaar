@@ -142,6 +142,11 @@ TEST("arena lines: no throw on bad bytes, no cast on bad numbers") {
     CHECK(!ArenaSessionFromJson(R"({"when":"2026-10-22T00:00:00","kills":1.5})", back));
     CHECK(ArenaSessionFromJson(R"({"when":"2026-10-22T00:00:00","kills":12,"weapons":{"x":[3,2]}})", back));
     CHECK(back.kills == 12 && back.weapons.at("x").shots == 3);
+    // seconds is summed and formatted as a duration: 1e30 was UB in that int cast
+    CHECK(ArenaSessionFromJson(R"({"when":"2026-10-22T00:00:00","seconds":1e30})", back));
+    CHECK(back.seconds >= 0 && back.seconds <= 86400);
+    CHECK(ArenaSessionFromJson(R"({"when":"2026-10-22T00:00:00","seconds":-30})", back));
+    CHECK(back.seconds == 0);
 }
 
 TEST("arena session round trip") {
