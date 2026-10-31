@@ -294,7 +294,7 @@ void Dev_ServerTicks( int ticksRun, int backlogMsec, int frameMsec ) {
 	}
 
 	if ( frameMsec > 0 && suppressSpikeFrames <= 0 &&
-		backlogMsec > dev_maxTickBacklog->integer * frameMsec &&
+		backlogMsec > dev_maxTickBacklog->integer * (long long)frameMsec &&
 		now - lastBacklogLogTime >= BACKLOG_LOG_GAP_MSEC ) {
 		lastBacklogLogTime = now;
 		Com_Printf( S_COLOR_YELLOW "WARNING: server tick loop behind: %d ms backlog (%.1f ticks at %d ms/tick), ran %d ticks this frame\n",
@@ -537,6 +537,7 @@ void Dev_Init( void ) {
 	dev_spikeMinMs = Cvar_Get( "dev_spikeMinMs", "12", 0 );
 	Cvar_SetDescription( dev_spikeMinMs, "Frames must also exceed this many ms to be logged as a spike" );
 	dev_maxTickBacklog = Cvar_Get( "dev_maxTickBacklog", "3", 0 );
+	Cvar_CheckRange( dev_maxTickBacklog, 0, 3600, qtrue );
 	Cvar_SetDescription( dev_maxTickBacklog, "Warn when the server tick loop is more than this many ticks behind" );
 
 	dev_toastSpikes = Cvar_Get( "dev_toastSpikes", "0", CVAR_ARCHIVE );
