@@ -63,7 +63,8 @@ struct State {
     TrainerSim sim;
     skaar::Vec3 anchor;
     float baseYaw = 0;
-    bool anchored = false;
+    bool waitingSpawn = false;  // a respawn was sent: anchor on the command that sees it land
+    int spawnEFlags = 0;        // ps.eFlags when it was sent; the server's Spawn() toggles EF_TELEPORT_BIT
     uint32_t seed = 1;
 
     int countdownEnd = 0;     // cg.time the run starts
@@ -209,12 +210,17 @@ void Restart() {
         trap::SendConsoleCommand(skaar::Va("map %s\n", st.scenario.map.c_str()));
         return;
     }
-    trap::SendClientCommand("respawn");
-    if (st.anchored) {
-        BeginRun();
-    } else {
-        st.phase = Phase::kWaitSpawn;
+    // Always take the anchor from the spawn the server actually gives us: a
+    // restart can happen with the player frozen anywhere on the map, and on a
+    // map with several spawn points it is not the one we last anchored at.
+    // The respawn travels as a client command, so the anchor is not known yet
+    // (see OnCommand).
+    st.waitingSpawn = cg.snap != nullptr;  // before the first snapshot there is no respawn to wait for
+    if (cg.snap) {
+        st.spawnEFlags = cg.snap->ps.eFlags;
     }
+    st.phase = Phase::kWaitSpawn;
+    trap::SendClientCommand("respawn");
 }
 
 void Stop() {
@@ -613,11 +619,15 @@ void OnCommand(const usercmd_t& cmd, const playerState_t& ps) {
     const skaar::Vec3 eye{ps.origin[0], ps.origin[1], ps.origin[2] + ps.viewheight};
     const float yaw = ps.viewangles[YAW], pitch = -ps.viewangles[PITCH];
 
-    if (st.phase == Phase::kWaitSpawn) {
-        // the first command after the map loads: the player stands at the spawn
+    // A respawn asked for by Restart() lands a frame or two later; until then the
+    // eye is still the one from before it. The server's Spawn() toggles
+    // EF_TELEPORT_BIT, so the flip is the signal that the player is at the spawn.
+    const bool spawned = !st.waitingSpawn || ((ps.eFlags ^ st.spawnEFlags) & EF_TELEPORT_BIT) != 0;
+    if (st.phase == Phase::kWaitSpawn && spawned) {
+        // the first command after the spawn: the player stands at the spawn
+        st.waitingSpawn = false;
         st.anchor = eye;
         st.baseYaw = std::round(ps.viewangles[YAW]);
-        st.anchored = true;
         if (!st.replay.summary.file.empty() && st.replay.samples.empty()) {
             const std::string file = st.replay.summary.file;
             st.replay = RunRecord{};
