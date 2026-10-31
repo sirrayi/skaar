@@ -89,6 +89,7 @@ TEST("bad scenarios are rejected with a reason") {
         R"({"map": "range; seta rcon_password pwned"})",
         R"({"map": "range\nquit"})",
         R"({"map": ""})",
+        R"({"map": "ctf range"})",
         // a tiny lifetime stalls TrainerSim::Advance on its respawn loop
         R"({"targets": {"lifetime": 0.001}})",
         R"({"targets": {"lifetime": -3}})",
@@ -125,6 +126,18 @@ TEST("an integral float is still a whole number") {
     CHECK(s.seed == 5u);
     CHECK(!ParseScenario("x", R"({"targets": {"alive": 4.5}})", s, error));
     CHECK(!ParseScenario("x", R"({"seed": 4294967296.0})", s, error));  // one past uint32_t
+}
+
+TEST("a map name may be mixed case, but not long or punctuated") {
+    // community maps are named Ctf_Range and the engine's map search ignores case
+    Scenario s;
+    std::string error;
+    CHECK(ParseScenario("x", R"({"map": "Ctf_Range"})", s, error));
+    CHECK(s.map == "Ctf_Range");
+    // "maps/<name>.bsp" has to fit MAX_QPATH, so 54 characters is the longest name
+    const std::string longest(54, 'm');
+    CHECK(ParseScenario("x", "{\"map\": \"" + longest + "\"}", s, error));
+    CHECK(!ParseScenario("x", "{\"map\": \"" + longest + "m\"}", s, error));
 }
 
 TEST("benchmark tiers and progress") {

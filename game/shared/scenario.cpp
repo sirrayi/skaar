@@ -15,6 +15,10 @@ namespace {
 
 using json = nlohmann::json;
 
+// a map name is a file stem under maps/, and the search for one ignores case
+constexpr char kMapChars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
+constexpr std::size_t kMaxMapName = 54;  // MAX_QPATH - strlen("maps/") - strlen(".bsp") - 1
+
 // A JSON number as a float. Checked while it is still a double: narrowing an
 // out-of-float-range value is UB, and the value would only be rejected later.
 float Number(const json& v, const char* key) {
@@ -96,10 +100,13 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
         s.category = Get<std::string>(j, "category", "click");
         s.description = Get<std::string>(j, "description", "");
         s.map = Get<std::string>(j, "map", s.map);
-        // it ends up in a console command ("map %s"): keep it to a plain map name
-        if (s.map.empty() || s.map.size() > 32 ||
-            s.map.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-_") != std::string::npos) {
-            throw std::runtime_error("map must be a lowercase map name like \"range\"");
+        // it ends up in a console command ("map %s"): keep it to a plain map name.
+        // Mixed case is allowed, like the map search itself and the community maps
+        // that are named Ctf_Range; the length is bounded so that the engine's
+        // "maps/<name>.bsp" still fits MAX_QPATH (64): 5 + name + 4 + the terminator
+        if (s.map.empty() || s.map.size() > kMaxMapName ||
+            s.map.find_first_not_of(kMapChars) != std::string::npos) {
+            throw std::runtime_error("map must be a map name like \"range\"");
         }
         s.duration = Get<float>(j, "duration", s.duration);
         s.seed = Get<uint32_t>(j, "seed", 0);
