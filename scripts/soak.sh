@@ -20,13 +20,13 @@ STEP_SECONDS=${SOAK_STEP_SECONDS:-40}
 
 fail() { printf '%sSOAK FAIL: %s%s\n' "$C_RED" "$*" "$C_OFF"; stop_game; exit 1; }
 
-printf '[%s] building %s...\n' "$(now)" "$CONFIG"
-"$REPO/scripts/build.sh" "$CONFIG" > "$LOGS/soak-build-$STAMP.log" 2>&1 || { tail -20 "$LOGS/soak-build-$STAMP.log"; exit 1; }
-
 rm -rf "$H"
 mkdir -p "$H/base" "$LOGS"
 QLOG="$H/base/qconsole.log"
 PIPE="$H/base/dev.pipe"
+
+printf '[%s] building %s...\n' "$(now)" "$CONFIG"
+"$REPO/scripts/build.sh" "$CONFIG" > "$LOGS/soak-build-$STAMP.log" 2>&1 || { tail -20 "$LOGS/soak-build-$STAMP.log"; exit 1; }
 
 game_pid() { pgrep -f "fs_homepath $H" | head -1; }
 send() { [ -p "$PIPE" ] && printf '%s\n' "$*" > "$PIPE"; }
