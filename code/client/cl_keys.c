@@ -1473,7 +1473,7 @@ Load the console history from CONSOLE_HISTORY_FILE
 void CL_LoadConsoleHistory( void )
 {
 	char					*token, *text_p;
-	int						i, numChars, numLines = 0;
+	int						i, cursor, scroll, numChars, numLines = 0;
 	fileHandle_t	f;
 
 	consoleSaveBufferSize = FS_FOpenFileRead( CONSOLE_HISTORY_FILE, &f, qfalse );
@@ -1494,12 +1494,12 @@ void CL_LoadConsoleHistory( void )
 			if( !*( token = COM_Parse( &text_p ) ) )
 				break;
 
-			historyEditLines[ i ].cursor = atoi( token );
+			cursor = atoi( token );
 
 			if( !*( token = COM_Parse( &text_p ) ) )
 				break;
 
-			historyEditLines[ i ].scroll = atoi( token );
+			scroll = atoi( token );
 
 			if( !*( token = COM_Parse( &text_p ) ) )
 				break;
@@ -1514,6 +1514,26 @@ void CL_LoadConsoleHistory( void )
 				Com_DPrintf( S_COLOR_YELLOW "WARNING: probable corrupt history\n" );
 				break;
 			}
+			// cursor is used as a raw buffer index the moment the line is edited:
+			// Field_CharEvent shifts len + 1 - cursor bytes, so a cursor past the
+			// text gives memmove a negative size, and the overstrike path stores
+			// straight to buffer[ cursor ]. The field never leaves it outside the
+			// text, so anything else is a corrupt record
+			if( cursor < 0 || cursor > numChars )
+			{
+				Com_DPrintf( S_COLOR_YELLOW "WARNING: probable corrupt history\n" );
+				break;
+			}
+			// scroll only shifts the draw offset, and ctrl-e does leave it negative
+			// on a short line, so it is clamped rather than rejected; anything past
+			// the text is the same as being at the end of it
+			if( scroll < 0 )
+				scroll = 0;
+			else if( scroll > numChars )
+				scroll = numChars;
+
+			historyEditLines[ i ].cursor = cursor;
+			historyEditLines[ i ].scroll = scroll;
 			Com_Memcpy( historyEditLines[ i ].buffer,
 					text_p, numChars );
 			historyEditLines[ i ].buffer[ numChars ] = '\0';
