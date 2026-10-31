@@ -387,7 +387,7 @@ private:
         Vec3 d = light_.sunDir;
         const float len = std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
         const float lambert = std::fmax(0.0f, -(n[0] * d[0] + n[1] * d[1] + n[2] * d[2]) / len);
-        const float v = std::fmin(1.0f, light_.ambient + light_.sun * lambert);
+        const float v = std::fmax(0.0f, std::fmin(1.0f, light_.ambient + light_.sun * lambert));
         return static_cast<uint8_t>(std::lround(v * 255.0f * kOverbrightScale));
     }
 
@@ -626,7 +626,8 @@ private:
         const float lng = std::acos(std::fmax(-1.0f, std::fmin(1.0f, tz)));
 
         const auto byte = [](float v) {
-            return static_cast<uint8_t>(std::lround(std::fmin(1.0f, v) * 255.0f * kOverbrightScale));
+            // a negative light would wrap through uint8_t into the bright half
+            return static_cast<uint8_t>(std::lround(std::fmax(0.0f, std::fmin(1.0f, v)) * 255.0f * kOverbrightScale));
         };
         const uint8_t point[8] = {
             byte(light_.ambient), byte(light_.ambient), byte(light_.ambient),
