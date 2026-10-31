@@ -2,6 +2,7 @@
 // (trigger_push + target_position). Everything else is logged and ignored.
 //
 // This file is part of Skaar. GPLv2 or later.
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdlib>
@@ -14,6 +15,12 @@
 
 namespace sg {
 namespace {
+
+// Entity coordinates and angles come straight from the map's entity lump (mapc writes JSON
+// numbers into it verbatim), and both end up in int conversions: SnapVector truncates the
+// origin, ANGLE2SHORT converts the yaw. Both are UB outside int's range, so anything the map
+// cannot legitimately mean is dropped here instead.
+constexpr float kMaxCoord = 65535;  // MAX_MAP_BOUNDS (cm_polylib.h), far past any real map
 
 // Reads one { "key" "value" ... } block. Returns false at the end of the lump.
 bool ReadEntity(EntityKeys& keys) {
@@ -45,6 +52,9 @@ void ReadVector(const EntityKeys& keys, const char* key, vec3_t out) {
     auto it = keys.find(key);
     if (it != keys.end()) {
         std::sscanf(it->second.c_str(), "%f %f %f", &out[0], &out[1], &out[2]);
+        for (int i = 0; i < 3; i++) {
+            out[i] = std::isfinite(out[i]) ? std::clamp(out[i], -kMaxCoord, kMaxCoord) : 0;
+        }
     }
 }
 
@@ -113,7 +123,9 @@ void SpawnPlayerStart(const EntityKeys& keys) {
     ReadVector(keys, "origin", spot.origin);
     auto angle = keys.find("angle");
     if (angle != keys.end()) {
-        spot.angles[YAW] = static_cast<float>(std::atof(angle->second.c_str()));
+        // wrapping at 360 keeps the value small enough for ANGLE2SHORT's int conversion
+        const float yaw = static_cast<float>(std::atof(angle->second.c_str()));
+        spot.angles[YAW] = std::isfinite(yaw) ? std::fmod(yaw, 360.0f) : 0;
     }
     level.spawns.push_back(spot);
 }
