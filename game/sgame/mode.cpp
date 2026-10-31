@@ -122,7 +122,7 @@ void WriteSession(int clientNum) {
     trap::RealTime(&t);
     s.when = {t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec};
     s.map = level.mapname;
-    s.ruleset = cvars.movement.string[0] ? cvars.movement.string : "vq3";
+    s.ruleset = skaar::move::RulesetAt(level.ruleset).id;  // what ran, not what g_movement asked for
     s.seconds = (level.time - cs.sessionStart) / 1000.0f;
     s.damageDealt = cs.damageDealt;
     s.damageTaken = cs.damageTaken;
@@ -411,9 +411,11 @@ bool SpawnEntity(const char* classname, const EntityKeys& keys) {
             }
         }
         if (auto it = keys.find("ruleset"); it != keys.end()) {
-            std::string text;
-            if (skaar::move::FindRuleset(it->second) >= 0 ||
-                trap::FileRead(skaar::Va("rulesets/%s.json", it->second.c_str()), text)) {
+            // the registry is the only authority: LoadRulesets ran before the entity lump, so
+            // an id that is merely a file on disk is one that failed to parse. Accepting it
+            // would make g_movement point at a ruleset that cannot run (vq3 is silently
+            // substituted) and archive that name into the player's config.
+            if (skaar::move::FindRuleset(it->second) >= 0) {
                 trap::CvarSet("g_movement", it->second.c_str());
             } else {
                 Com_Printf(S_COLOR_YELLOW "WARNING: info_loadout: unknown ruleset '%s'\n", it->second.c_str());
