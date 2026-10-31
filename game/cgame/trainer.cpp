@@ -50,7 +50,7 @@ enum class Phase {
 };
 
 struct Cvars {
-    vmCvar_t scenario, dpi, sensitivity, mYaw;
+    vmCvar_t scenario, dpi, dpiLegacy, sensitivity, mYaw;
     vmCvar_t chStyle, chSize, chGap, chThickness, chColor, chOutline, hitSound, volumeHint;
 };
 
@@ -100,6 +100,10 @@ void RegisterCvars() {
     // sens_dpi is the cvar docs/feel.md documents and sens_test divides by; the aim
     // screens read it too. Its default is 0 = unset, so the record falls back to 800.
     trap::CvarRegister(&cv.dpi, "sens_dpi", "0", CVAR_ARCHIVE);
+    // sk_dpi is what the aim screens wrote before they moved to sens_dpi (game/ui);
+    // read it as a fallback so a record is right whichever order the two land in.
+    // Not archived: it only mirrors a value the UI owns.
+    trap::CvarRegister(&cv.dpiLegacy, "sk_dpi", "0", 0);
     trap::CvarRegister(&cv.sensitivity, "sensitivity", "2", CVAR_ARCHIVE);
     trap::CvarRegister(&cv.mYaw, "m_yaw", "0.022", CVAR_ARCHIVE);
     namespace rd = skaar::ui::reticle_defaults;
@@ -113,14 +117,22 @@ void RegisterCvars() {
 }
 
 void UpdateCvars() {
-    for (vmCvar_t* c : {&cv.scenario, &cv.dpi, &cv.sensitivity, &cv.mYaw, &cv.chStyle, &cv.chSize, &cv.chGap,
+    for (vmCvar_t* c : {&cv.scenario, &cv.dpi, &cv.dpiLegacy, &cv.sensitivity, &cv.mYaw, &cv.chStyle, &cv.chSize, &cv.chGap,
                         &cv.chThickness, &cv.chColor, &cv.chOutline, &cv.hitSound}) {
         trap::CvarUpdate(c);
     }
 }
 
 float CmPer360() {
-    const float dpi = cv.dpi.value > 0 ? cv.dpi.value : 800;  // 0 = unset, as the aim screens read it
+    // 0 = unset everywhere: sens_dpi first (documented), then the screens' older
+    // sk_dpi, then the 800 the aim screens also assume when nothing is set
+    float dpi = cv.dpi.value;
+    if (!(dpi > 0)) {
+        dpi = cv.dpiLegacy.value;
+    }
+    if (!(dpi > 0)) {
+        dpi = 800;
+    }
     return skaar::sens::CmPer360(cv.sensitivity.value, cv.mYaw.value, dpi);
 }
 
