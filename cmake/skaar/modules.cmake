@@ -2,6 +2,16 @@
 # Target names match the upstream ones (qagame_base...) so scripts/rebuild.sh
 # and the output paths (<config>/base/*.dylib) stay the same.
 
+if(BUILD_GAME_QVMS)
+    # basegame.cmake's QVM rule builds C, and these modules are native C++20
+    # libraries with no QVM entry point; say so rather than emit nothing
+    message(WARNING "BUILD_GAME_QVMS: Skaar's game modules are native libraries only, no .qvm files are produced")
+endif()
+if(NOT BUILD_GAME_LIBRARIES)
+    message(STATUS "BUILD_GAME_LIBRARIES=OFF: not building the game modules")
+    return()
+endif()
+
 include(utils/set_output_dirs)
 
 enable_language(CXX)
