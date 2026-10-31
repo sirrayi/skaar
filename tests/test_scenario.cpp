@@ -141,6 +141,26 @@ TEST("lifetime: 0 means never, tiny nonzero values are rejected") {
     CHECK_NEAR(s.targets.lifetime, 30, 1e-6);
 }
 
+TEST("speed, health and the score weights are bounded") {
+    Scenario s;
+    std::string error;
+    // a target that crosses its whole window between two Advance() calls would make the
+    // motion depend on the frame rate, so the magnitude is capped
+    CHECK(ParseScenario("x", R"({"targets": {"motion": {"type": "float", "speed": 5000}}})", s, error));
+    CHECK(!ParseScenario("x", R"({"targets": {"motion": {"type": "float", "speed": 5001}}})", s, error));
+    CHECK(!ParseScenario("x", R"({"targets": {"motion": {"type": "float", "speed": [-6000, 100]}}})", s, error));
+    CHECK(ParseScenario("x", R"({"targets": {"health": 1000}})", s, error));
+    CHECK(!ParseScenario("x", R"({"targets": {"health": 200000}})", s, error));
+    CHECK(!ParseScenario("x", R"({"targets": {"spawn": {"distance": 200000}}})", s, error));
+    CHECK(!ParseScenario("x", R"({"targets": {"motion": {"type": "strafe", "changeEvery": 61}}})", s, error));
+    // 0..1: outside it the click score can go negative
+    for (const char* w : {R"(-0.1)", R"(1.1)"}) {
+        CHECK(!ParseScenario("x", std::string(R"({"score": {"accuracyWeight": )") + w + "}}", s, error));
+    }
+    CHECK(ParseScenario("x", R"({"score": {"accuracyWeight": 1}})", s, error));
+    CHECK(!ParseScenario("x", R"({"score": {"kill": -100}})", s, error));
+}
+
 TEST("scenario JSON round trip (the in-game editor saves with it)") {
     for (const auto& e : std::filesystem::directory_iterator(kData / "scenarios")) {
         Scenario a, b;

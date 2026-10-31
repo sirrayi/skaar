@@ -197,11 +197,11 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
         if (s.targets.radius < 1 || s.targets.radius > 256) {
             throw std::runtime_error("targets.radius must be 1..256");
         }
-        if (s.targets.health <= 0) {
-            throw std::runtime_error("targets.health must be > 0");
+        if (s.targets.health <= 0 || s.targets.health > 100000) {
+            throw std::runtime_error("targets.health must be > 0 and <= 100000");
         }
-        if (s.targets.distance.min < 64) {
-            throw std::runtime_error("targets.spawn.distance must be >= 64");
+        if (s.targets.distance.min < 64 || s.targets.distance.max > 100000) {
+            throw std::runtime_error("targets.spawn.distance must be 64..100000");
         }
         if (s.targets.cols < 1 || s.targets.rows < 1 ||
             static_cast<int64_t>(s.targets.cols) * s.targets.rows > 256) {
@@ -213,8 +213,22 @@ bool ParseScenario(std::string_view id, std::string_view text, Scenario& out, st
             static_cast<int64_t>(s.targets.cols) * s.targets.rows <= s.targets.alive) {
             throw std::runtime_error("a grid needs more cells than targets.alive");
         }
-        if (s.targets.changeEvery.min < 0.05f) {
-            throw std::runtime_error("motion.changeEvery must be >= 0.05");
+        if (s.targets.changeEvery.min < 0.05f || s.targets.changeEvery.max > 60) {
+            throw std::runtime_error("motion.changeEvery must be 0.05..60 seconds");
+        }
+        // speed in world units per second: unbounded, a target crosses its whole window
+        // between two Advance() calls, and how far it gets then depends on the frame rate
+        if (s.targets.speed.min < -5000 || s.targets.speed.max > 5000) {
+            throw std::runtime_error("motion.speed must be within -5000..5000 units per second");
+        }
+        if (!(s.score.accuracyWeight >= 0 && s.score.accuracyWeight <= 1)) {
+            throw std::runtime_error("score.accuracyWeight must be 0..1");
+        }
+        if (s.score.kill < 0 || s.score.perSecondOnTarget < 0) {
+            throw std::runtime_error("score.kill and score.perSecondOnTarget must be >= 0");
+        }
+        if (s.score.kill > 1e7f || s.score.perSecondOnTarget > 1e7f) {
+            throw std::runtime_error("score.kill and score.perSecondOnTarget must be <= 10000000");
         }
         if (!(s.targets.lifetime >= 0) ||  // also rejects NaN
             (s.targets.lifetime > 0 && s.targets.lifetime < 0.05f)) {
