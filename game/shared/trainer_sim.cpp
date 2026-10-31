@@ -397,7 +397,14 @@ TrainerEvents TrainerSim::Input(float t, Vec3 eye, float yaw, float pitch, bool 
             shots_++;
             hits_ += hitTarget ? 1 : 0;
             logShot(hitTarget != nullptr);
-            nextTrackSample_ = t + kTrackSampleInterval;
+            // Advance the 20 Hz grid rather than rebasing it on `t`, so the
+            // logged series is the same at any command rate (the cgame reads
+            // these samples back at 0.05 s each). Slots a long frame missed are
+            // skipped, not logged in a burst.
+            nextTrackSample_ += kTrackSampleInterval;
+            while (nextTrackSample_ <= t) {
+                nextTrackSample_ += kTrackSampleInterval;
+            }
         }
         if (hitTarget) {
             ev.hits++;
