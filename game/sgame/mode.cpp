@@ -25,6 +25,9 @@ namespace {
 constexpr int kDamageRadius = 0x1;       // Q3 DAMAGE_* flags (g_local.h)
 constexpr int kDamageNoKnockback = 0x4;
 constexpr float kArmorProtection = 0.66f;
+// damage is an int the game does arithmetic on; anything past this is nonsense data, and
+// 2147483647 itself is not representable as a float, so the clamp value stays well inside int
+constexpr float kMaxDamage = 1.0e9f;
 
 void LoadWeapons() {
     skaar::ResetWeapons();
@@ -236,8 +239,11 @@ void RadiusDamage(const vec3_t origin, gentity_t* attacker, float damage, float 
         vec3_t dir;
         VectorSubtract(ent->r.currentOrigin, origin, dir);
         dir[2] += 24;  // push the centre of mass higher, so players go up more
-        Damage(ent, nullptr, attacker, dir, origin, static_cast<int>(damage * (1.0f - dist / radius)), kDamageRadius,
-               mod);
+        // the weapon parser bounds splashDamage only from below, and a float->int conversion
+        // outside int's range is UB (INT_MIN here, INT_MAX there), so saturate first
+        const float scaled = damage * (1.0f - dist / radius);
+        const int take = static_cast<int>(std::clamp(std::isfinite(scaled) ? scaled : 0.0f, 0.0f, kMaxDamage));
+        Damage(ent, nullptr, attacker, dir, origin, take, kDamageRadius, mod);
     }
 }
 
