@@ -85,8 +85,6 @@ struct State {
     RunRecord replay;
     int replayStart = 0;
     size_t replayKill = 0, replayShot = 0;
-    vec3_t replayOrigin{};
-    vec3_t replayAngles{};
 
     qhandle_t model = 0, shader = 0;
     sfxHandle_t hitSound = 0, killSound = 0, gunSound = 0;
@@ -300,8 +298,29 @@ bool StartReplay(const std::string& file) {
     return true;
 }
 
+// How far into the recorded run the replay is, in seconds.
+float ReplayTime() { return (cg.time - st.replayStart) / 1000.0f; }
+
+// The recorded camera at time t: the view samples around it, interpolated.
+// Read from OverrideView rather than stored by AdvanceReplay: the view for a
+// frame is built before AddEntities runs, so the camera has to be computed
+// where it is needed (see OverrideView).
+void ReplayCamera(float t, vec3_t origin, vec3_t angles) {
+    const auto& s = st.replay.samples;
+    auto it = std::lower_bound(s.begin(), s.end(), t, [](const skaar::ViewSample& v, float x) { return v.t < x; });
+    const skaar::ViewSample& b = it == s.end() ? s.back() : *it;
+    const skaar::ViewSample& a = it == s.begin() ? b : *(it - 1);
+    const float k = b.t > a.t ? std::clamp((t - a.t) / (b.t - a.t), 0.0f, 1.0f) : 0;
+    angles[YAW] = a.yaw + skaar::AngleDelta(b.yaw, a.yaw) * k;
+    angles[PITCH] = -(a.pitch + (b.pitch - a.pitch) * k);
+    angles[ROLL] = 0;
+    origin[0] = a.x + (b.x - a.x) * k;
+    origin[1] = a.y + (b.y - a.y) * k;
+    origin[2] = a.z + (b.z - a.z) * k;
+}
+
 void AdvanceReplay() {
-    const float t = (cg.time - st.replayStart) / 1000.0f;
+    const float t = ReplayTime();
     const auto& kills = st.replay.kills;
     const auto& shots = st.replay.shots;
     // apply recorded events in time order, so spawns draw from the RNG as they did
@@ -322,21 +341,6 @@ void AdvanceReplay() {
         st.replayShot++;
     }
     st.sim.Advance(t);
-
-    // camera: interpolate the samples around t
-    const auto& s = st.replay.samples;
-    auto it = std::lower_bound(s.begin(), s.end(), t, [](const skaar::ViewSample& v, float x) { return v.t < x; });
-    const skaar::ViewSample& b = it == s.end() ? s.back() : *it;
-    const skaar::ViewSample& a = it == s.begin() ? b : *(it - 1);
-    const float k = b.t > a.t ? std::clamp((t - a.t) / (b.t - a.t), 0.0f, 1.0f) : 0;
-    const float yaw = a.yaw + skaar::AngleDelta(b.yaw, a.yaw) * k;
-    const float pitch = a.pitch + (b.pitch - a.pitch) * k;
-    st.replayAngles[YAW] = yaw;
-    st.replayAngles[PITCH] = -pitch;
-    st.replayAngles[ROLL] = 0;
-    st.replayOrigin[0] = a.x + (b.x - a.x) * k;
-    st.replayOrigin[1] = a.y + (b.y - a.y) * k;
-    st.replayOrigin[2] = a.z + (b.z - a.z) * k;
 
     if (t > st.replay.summary.duration + 1.5f) {
         st.phase = Phase::kOff;
@@ -816,8 +820,7 @@ void OverrideView(vec3_t origin, vec3_t angles) {
     if (st.phase != Phase::kReplay) {
         return;
     }
-    VectorCopy(st.replayOrigin, origin);
-    VectorCopy(st.replayAngles, angles);
+    ReplayCamera(ReplayTime(), origin, angles);
 }
 
 }  // namespace cg::trainer
