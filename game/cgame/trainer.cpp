@@ -215,6 +215,12 @@ void Restart() {
         trap::SendConsoleCommand(skaar::Va("map %s\n", st.scenario.map.c_str()));
         return;
     }
+    // One respawn at a time: Spawn() only toggles EF_TELEPORT_BIT, so two respawns in
+    // flight flip it twice and the anchor never sees one land (sk_restart;sk_restart on
+    // one line). The restart already in flight does what this one would ask for.
+    if (st.waitingSpawn) {
+        return;
+    }
     // Always take the anchor from the spawn the server actually gives us: a
     // restart can happen with the player frozen anywhere on the map, and on a
     // map with several spawn points it is not the one we last anchored at.
