@@ -3,6 +3,7 @@
 // the aim trainer doesn't need yet (items, damage, teams, bots).
 //
 // This file is part of Skaar. GPLv2 or later.
+#include <cmath>
 #include <cstring>
 
 #include "local.h"
@@ -147,17 +148,31 @@ void ClientCommand(int clientNum) {
             if (trap::Argc() < 4) {
                 SendPrint(clientNum, "usage: setviewpos x y z [yaw]\n");
             } else {
-                gentity_t& ent = EntityFor(clientNum);
-                vec3_t angles = {0, static_cast<float>(atof(trap::Argv(4).c_str())), 0};
+                // atof reads "1e30" and "nan" happily, and neither survives what happens
+                // next: ANGLE2SHORT is (x * 65536 / 360) as an int, and the origin is
+                // snapped into the entity state. Reject both rather than truncate them
+                vec3_t origin, angles = {0, 0, 0};
+                bool finite = true;
                 for (int i = 0; i < 3; i++) {
-                    client.ps.origin[i] = static_cast<float>(atof(trap::Argv(i + 1).c_str()));
+                    origin[i] = static_cast<float>(atof(trap::Argv(i + 1).c_str()));
+                    finite = finite && std::isfinite(origin[i]) && std::fabs(origin[i]) <= kMaxCoord;
                 }
-                client.ps.origin[2] -= DEFAULT_VIEWHEIGHT;  // the arguments are the eye position, as viewpos prints
-                VectorClear(client.ps.velocity);
-                client.ps.eFlags ^= EF_TELEPORT_BIT;
-                SetViewAngles(client, ent, angles);
-                BG_PlayerStateToEntityState(&client.ps, &ent.s, qtrue);
-                trap::LinkEntity(&ent);
+                angles[YAW] = static_cast<float>(atof(trap::Argv(4).c_str()));
+                finite = finite && std::isfinite(angles[YAW]) && std::fabs(angles[YAW]) <= kMaxCoord;
+                if (!finite) {
+                    SendPrint(clientNum, "setviewpos: coordinates and yaw must be within -65535..65535\n");
+                } else {
+                    gentity_t& ent = EntityFor(clientNum);
+                    for (int i = 0; i < 3; i++) {
+                        client.ps.origin[i] = origin[i];
+                    }
+                    client.ps.origin[2] -= DEFAULT_VIEWHEIGHT;  // the arguments are the eye position, as viewpos prints
+                    VectorClear(client.ps.velocity);
+                    client.ps.eFlags ^= EF_TELEPORT_BIT;
+                    SetViewAngles(client, ent, angles);
+                    BG_PlayerStateToEntityState(&client.ps, &ent.s, qtrue);
+                    trap::LinkEntity(&ent);
+                }
             }
         }
     } else if (!Q_stricmp(cmd.c_str(), "sk_freeze")) {
