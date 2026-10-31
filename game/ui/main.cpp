@@ -110,6 +110,12 @@ void StartScenario(const std::string& id) {
 void ShowRun(const std::string& file) {
     ui.selectedRun = file;
     ui.insightsTab = InsightsTab::kRun;
+    // a click on a chart dot lands in the middle of a draw, and Open() reloads the
+    // data that screen is still reading: let Refresh() do it once the frame is done
+    if (ui.drawing) {
+        ui.openRunAfterFrame = true;
+        return;
+    }
     if (ui.screen != Screen::kInsights) {
         Open(Screen::kInsights);
         ui.insightsTab = InsightsTab::kRun;
@@ -235,6 +241,7 @@ void Refresh(int realtime) {
         return;
     }
     BeginFrame();
+    ui.drawing = true;
     switch (ui.screen) {
         case Screen::kHome:
             DrawHome();
@@ -260,8 +267,14 @@ void Refresh(int realtime) {
         case Screen::kNone:
             break;
     }
+    ui.drawing = false;
     if (ui.back) {
         Back();
+    }
+    // the screen a draw asked for opens here, once nothing is reading the old data
+    if (ui.openRunAfterFrame) {
+        ui.openRunAfterFrame = false;
+        ShowRun(ui.selectedRun);
     }
     DrawMarker();
     Pointer();

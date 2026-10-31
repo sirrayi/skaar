@@ -107,6 +107,8 @@ struct State {
     SettingsTab settingsTab = SettingsTab::kAim;
     std::string selectedRun;           // file of the run shown in Insights › Run
     std::string pinnedRun;             // compared against in Insights › Run (else the scenario's best)
+    bool drawing = false;              // a screen is drawing: Open() has to wait for the frame to end
+    bool openRunAfterFrame = false;    // ShowRun() was asked for from inside that draw
     std::map<std::string, skaar::RunRecord> records;  // loaded run files, a few at a time
     std::string runError;
     std::map<std::string, float> scroll;  // per list
