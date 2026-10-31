@@ -196,6 +196,9 @@ void ResetStubs() {
 // ---- player -----------------------------------------------------------------
 
 constexpr int kMsec = 8;  // pmove_fixed 1, pmove_msec 8 (plan-P1)
+// gravity one 8 ms frame of SlideMove applies at gravity 800; reading a jump
+// velocity back has to add exactly this much
+constexpr float kGravFrame = 800.0f * kMsec * 0.001f;
 
 struct Player {
     playerState_t ps{};
@@ -545,8 +548,10 @@ void TestWater() {
     for (int i = 0; i < 5 && !(jump.ps.pm_flags & PMF_TIME_WATERJUMP); i++) {
         jump.Step(0, 127, 0, 0);
     }
-    Check((jump.ps.pm_flags & PMF_TIME_WATERJUMP) != 0 && jump.ps.velocity[2] > 330 &&
-              std::fabs(jump.Speed() - 200) < 1,
+    // CheckWaterJump sets 350 ups; StepSlideMove and WaterJumpMove then each take
+    // a frame of gravity off it before the snap
+    Check((jump.ps.pm_flags & PMF_TIME_WATERJUMP) != 0 &&
+              std::fabs(jump.ps.velocity[2] - (350 - 2 * kGravFrame)) <= 1 && std::fabs(jump.Speed() - 200) < 1,
           "water: a ledge in front turns into a water jump",
           Fmt("vz %.0f (350 less two frames), forward %.0f ups, pm_flags %d", jump.ps.velocity[2], jump.Speed(),
               jump.ps.pm_flags));
@@ -563,15 +568,16 @@ float JumpVz(int rs, int jumpTimeMs, float vz0 = 0) {
     p.ps.stats[kStatJumpTime] = jumpTimeMs;
     p.ps.velocity[2] = vz0;
     p.Step(0, 0, 0, 127);
-    // the step applied half a frame of gravity after the jump
-    return p.ps.velocity[2] + 0.5f * 800 * kMsec * 0.001f;
+    // SlideMove copies endVelocity (vz - gravity * a whole frametime) back into
+    // ps.velocity before the snap, so undo one full frame, not half of one
+    return p.ps.velocity[2] + kGravFrame;
 }
 
 void TestJumps() {
-    Check(std::fabs(JumpVz(0, 0) - 270) < 4, "vq3: jump velocity 270", Fmt("%.1f", JumpVz(0, 0)));
-    Check(std::fabs(JumpVz(1, 0) - 270) < 4, "cpm: first jump 270", Fmt("%.1f", JumpVz(1, 0)));
-    Check(std::fabs(JumpVz(1, 300) - 370) < 4, "cpm: jump inside the 400 ms window +100", Fmt("%.1f", JumpVz(1, 300)));
-    Check(std::fabs(JumpVz(0, 300) - 270) < 4, "vq3: no double jump", Fmt("%.1f", JumpVz(0, 300)));
+    Check(std::fabs(JumpVz(0, 0) - 270) < 1, "vq3: jump velocity 270", Fmt("%.1f", JumpVz(0, 0)));
+    Check(std::fabs(JumpVz(1, 0) - 270) < 1, "cpm: first jump 270", Fmt("%.1f", JumpVz(1, 0)));
+    Check(std::fabs(JumpVz(1, 300) - 370) < 1, "cpm: jump inside the 400 ms window +100", Fmt("%.1f", JumpVz(1, 300)));
+    Check(std::fabs(JumpVz(0, 300) - 270) < 1, "vq3: no double jump", Fmt("%.1f", JumpVz(0, 300)));
 
     // low ceiling: bonk, land fast, jump again inside the window
     for (int rs : {0, 1}) {
@@ -590,12 +596,12 @@ void TestJumps() {
             }
             p.Step(0, 0, 0, ground ? 127 : 0);
             if (ground) {
-                second = p.ps.velocity[2] + 0.5f * 800 * kMsec * 0.001f;
+                second = p.ps.velocity[2] + kGravFrame;
                 break;
             }
         }
         const float want = rs == 1 ? 370 : 270;
-        Check(std::fabs(second - want) < 4,
+        Check(std::fabs(second - want) < 1,
               Fmt("%s: ceiling bonk, second jump %s", RulesetAt(rs).id.c_str(), rs ? "is a double jump" : "is normal")
                   .c_str(),
               Fmt("landed after %d ms, jumped at %.1f", landedAt, second));
@@ -611,7 +617,7 @@ void TestJumps() {
         RunUp(p, 0, 1.8f);
         float vzBefore = p.ps.velocity[2];
         p.Step(0, 127, 0, 127);
-        rampVz[rs] = p.ps.velocity[2] + 0.5f * 800 * kMsec * 0.001f;
+        rampVz[rs] = p.ps.velocity[2] + kGravFrame;
         if (rs == 1) {
             Check(vzBefore > 80 && std::fabs(rampVz[1] - (270 + vzBefore)) < 6, "cpm: ramp jump keeps upward speed",
                   Fmt("vz %.0f before, %.0f after", vzBefore, rampVz[1]));
@@ -627,7 +633,7 @@ void TestJumps() {
     RunUp(down, 180, 1.0f);
     const float vzBefore = down.ps.velocity[2];
     down.Step(180, 127, 0, 127);
-    const float vz = down.ps.velocity[2] + 0.5f * 800 * kMsec * 0.001f;
+    const float vz = down.ps.velocity[2] + kGravFrame;
     Check(vzBefore < -50 && std::fabs(vz - 270) < 6, "cpm: downhill jump is a full 270",
           Fmt("vz %.0f before, %.0f after", vzBefore, vz));
 }
@@ -808,7 +814,7 @@ void TestTac(const std::string& repo) {
     Check(p.Speed() <= 262, "tac: no strafe-jump speed gain", Fmt("%.0f ups after 8 s", p.Speed()));
 
     const float vz = JumpVz(rs, 0);
-    Check(std::fabs(vz - 260) < 4, "tac: jump velocity 260", Fmt("%.1f (~%.0f units high)", vz, 260 * 260 / 1600.0));
+    Check(std::fabs(vz - 260) < 1, "tac: jump velocity 260", Fmt("%.1f (~%.0f units high)", vz, 260 * 260 / 1600.0));
     ResetRulesets();
 }
 
