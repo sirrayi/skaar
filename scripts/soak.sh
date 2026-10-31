@@ -29,7 +29,9 @@ printf '[%s] building %s...\n' "$(now)" "$CONFIG"
 "$REPO/scripts/build.sh" "$CONFIG" > "$LOGS/soak-build-$STAMP.log" 2>&1 || { tail -20 "$LOGS/soak-build-$STAMP.log"; exit 1; }
 
 game_pid() { pgrep -f "fs_homepath $H" | head -1; }
-send() { [ -p "$PIPE" ] && printf '%s\n' "$*" > "$PIPE"; }
+# never blocks: a game that died leaves its pipe behind, and a plain redirect
+# into a reader-less FIFO would hang the soak forever (sample() reports it)
+send() { pipe_write "$PIPE" "$*" || true; }
 stop_game() {
     send quit 2>/dev/null || true
     sleep 2
@@ -53,10 +55,11 @@ START=$(date +%s)
 END=$((START + MINUTES * 60))
 
 sample() {
-    send dev_stats
-    sleep 0.5
+    # liveness first: a crash or quit leaves nothing to write the pipe to
     rss=$(ps -o rss= -p "$PID" 2>/dev/null | tr -d ' ')
     [ -n "$rss" ] || fail "game exited during step '$1'"
+    send dev_stats
+    sleep 0.5
     stats=$(grep -a "dev_stats:" "$QLOG" | tail -1)
     fps=$(printf '%s' "$stats" | sed -n 's/.*fps \([0-9.]*\),.*/\1/p')
     p99=$(printf '%s' "$stats" | sed -n 's/.*p99 \([0-9.]*\) ms.*/\1/p')

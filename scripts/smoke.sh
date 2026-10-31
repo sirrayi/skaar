@@ -70,7 +70,7 @@ ALIVE=1
 kill -0 "$PID" 2>/dev/null || ALIVE=0
 
 if [ "$ALIVE" = 1 ]; then
-    printf 'quit\n' > "$HOMEDIR/base/$PIPE" 2>/dev/null || kill -TERM "$PID"
+    pipe_write "$HOMEDIR/base/$PIPE" quit || kill -TERM "$PID"
     i=0
     while kill -0 "$PID" 2>/dev/null && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
     kill -0 "$PID" 2>/dev/null && { kill -KILL "$PID"; fail "server didn't quit within 5s"; }
