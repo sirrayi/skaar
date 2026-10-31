@@ -164,8 +164,33 @@ void Trace(trace_t* tr, const vec3_t start, const vec3_t mins, const vec3_t maxs
     }
 }
 
-int PointContents(const vec3_t, int) {
-    return 0;  // no water
+// A player standing exactly on the floor plane (origin z == 24) is allsolid to
+// the stand-in Trace above, because d1 == 0 does not count as "outside"; ground
+// movement only works once the gravity step has lifted him by the clip epsilon.
+// WaterMove applies no gravity, so players that start in water start settled.
+constexpr float kSettledZ = 24.125f;  // 24 + SURFACE_CLIP_EPSILON
+
+// What PointContents reports. Off by default; a script turns water on so the
+// water paths in the port are reachable at all. The pool fills everything below
+// g_waterZ and left of g_waterX; past g_wallX (below g_wallZ) is a low ledge,
+// which is what CheckWaterJump probes for before it launches the player.
+float g_waterZ = -100000;  // water surface height
+float g_waterX = 100000;   // the pool ends here
+float g_wallX = 100000;    // the ledge starts here
+float g_wallZ = 0;         // ... up to this height
+
+int PointContents(const vec3_t p, int) {
+    if (p[0] > g_wallX && p[2] < g_wallZ) {
+        return CONTENTS_SOLID;
+    }
+    return p[2] < g_waterZ && p[0] < g_waterX ? CONTENTS_WATER : 0;
+}
+
+void ResetStubs() {
+    g_waterZ = -100000;
+    g_waterX = 100000;
+    g_wallX = 100000;
+    g_wallZ = 0;
 }
 
 // ---- player -----------------------------------------------------------------
@@ -176,6 +201,12 @@ struct Player {
     playerState_t ps{};
     int time = 0;
     bool useC = false;  // run Q3's C Pmove instead of the port
+    // one command covers `period` ms but is still chopped up into pmove_msec
+    // steps, which is what the shipped modules do at any fps below 125
+    int period = kMsec;
+    bool fixed = true;           // pmove_fixed
+    int waterlevel = 0;          // pm->waterlevel after the last step
+    int watertype = 0;           // pm->watertype after the last step
 
     Player(int ruleset, float x, float y, float z) {
         ps.commandTime = 0;
@@ -190,9 +221,9 @@ struct Player {
         VectorSet(ps.origin, x, y, z);
     }
 
-    // one 8 ms command; yaw in degrees
+    // one command; yaw in degrees
     void Step(float yaw, int forward, int right, int up, float pitch = 0) {
-        time += kMsec;
+        time += period;
         pmove_t pm{};
         pm.ps = &ps;
         pm.cmd.serverTime = time;
@@ -205,13 +236,15 @@ struct Player {
         pm.trace = Trace;
         pm.pointcontents = PointContents;
         pm.noFootsteps = qtrue;
-        pm.pmove_fixed = 1;
+        pm.pmove_fixed = fixed ? 1 : 0;
         pm.pmove_msec = kMsec;
         if (useC) {
             ::Pmove(&pm);
         } else {
             skaar::move::Pmove(&pm);
         }
+        waterlevel = pm.waterlevel;
+        watertype = pm.watertype;
     }
 
     float Speed() const { return std::sqrt(ps.velocity[0] * ps.velocity[0] + ps.velocity[1] * ps.velocity[1]); }
@@ -270,6 +303,8 @@ void TestParity() {
         std::function<void()> world;
         std::function<void(Player&, int)> input;
         int steps;
+        int period = kMsec;  // command length; > pmove_msec chops it into sub-steps
+        bool fixed = true;   // pmove_fixed
     };
     const std::vector<Script> scripts = {
         {"parity: run, stop, crouch-walk", Floor,
@@ -300,19 +335,87 @@ void TestParity() {
              }
          },
          [](Player& p, int) { p.Step(0, 127, 0, 0); }, 300},
+        // a whole render frame per command at 30-90 fps: Pmove's chop loop runs
+        // 2-5 sub-steps and has to re-issue a held jump for each of them
+        {"parity: 33 ms commands, strafe jumping", Floor,
+         [](Player& p, int i) {
+             if (i < 40) {
+                 p.Step(0, 127, 0, 0);
+                 return;
+             }
+             const float v = std::max(p.Speed(), 1.0f);
+             const float theta = RAD2DEG(std::acos(std::clamp((320 - 2.56f) / v, -1.0f, 1.0f)));
+             p.Step(p.VelYaw() - theta + 45, 127, 127, (p.OnGround() || p.ps.velocity[2] < 0) ? 127 : 0);
+         },
+         300, 33},
+        {"parity: 100 ms commands, pmove_fixed 0", Floor,
+         [](Player& p, int) {
+             const float v = std::max(p.Speed(), 1.0f);
+             const float theta = RAD2DEG(std::acos(std::clamp((320 - 2.56f) / v, -1.0f, 1.0f)));
+             p.Step(p.VelYaw() - theta + 45, 127, 127, (p.OnGround() || p.ps.velocity[2] < 0) ? 127 : 0);
+         },
+         200, 100, false},
+        // the state branches the constructor used to make unreachable: every
+        // pm_type, PW_FLIGHT's friction and the ±16000 pitch clamp
+        {"parity: spectator", Floor,
+         [](Player& p, int i) { p.ps.pm_type = PM_SPECTATOR; p.Step(static_cast<float>(i) * 3.0f, 127, 0, 0); },
+         200},
+        {"parity: noclip", Floor,
+         [](Player& p, int i) { p.ps.pm_type = PM_NOCLIP; p.Step(static_cast<float>(i) * 3.0f, 127, 0, 0); },
+         200},
+        {"parity: freeze", Floor,
+         [](Player& p, int i) { p.ps.pm_type = PM_FREEZE; p.Step(static_cast<float>(i) * 3.0f, 127, 127, 0); },
+         200},
+        {"parity: dead", Floor,
+         [](Player& p, int i) {
+             p.ps.pm_type = PM_DEAD;
+             p.ps.stats[STAT_HEALTH] = 0;
+             if (i == 0) {
+                 // a corpse that is still moving, or DeadMove is a no-op
+                 p.ps.velocity[0] = 300;
+                 p.ps.velocity[2] = 120;
+             }
+             p.Step(static_cast<float>(i) * 3.0f, 0, 0, 0);
+         },
+         200},
+        {"parity: flight powerup", Floor,
+         [](Player& p, int i) { p.ps.powerups[PW_FLIGHT] = 1; p.Step(static_cast<float>(i) * 3.0f, 127, 0, i % 20 < 10 ? 127 : 0); },
+         200},
+        {"parity: pitch past the clamp", Floor,
+         [](Player& p, int i) { p.Step(static_cast<float>(i) * 3.0f, 127, 0, 0, 89.0f); }, 200},
+        {"parity: wade through a pool", [] {
+             Floor();
+             g_waterZ = 40;   // ankle to chest deep for a standing player
+             g_waterX = 300;  // ... and dry land past x = 300
+         },
+         [](Player& p, int i) {
+             if (i == 0) {
+                 p.ps.origin[2] = kSettledZ;
+             }
+             p.Step(0, 127, 0, (i % 40) < 8 ? 127 : 0);
+         },
+         400},
     };
 
     for (const Script& s : scripts) {
         g_world.clear();
+        ResetStubs();
         s.world();
         Player cpp(0, 0, 0, 24);
         Player c(0, 0, 0, 24);
         c.useC = true;
+        cpp.period = c.period = s.period;
+        cpp.fixed = c.fixed = s.fixed;
         int firstDiff = -1;
+        int maxWater = 0;
         for (int i = 0; i < s.steps && firstDiff < 0; i++) {
             s.input(cpp, i);
             s.input(c, i);
-            if (std::memcmp(&cpp.ps, &c.ps, sizeof(playerState_t)) != 0) {
+            maxWater = std::max(maxWater, cpp.waterlevel);
+            // waterlevel/watertype are pmove_t fields, so the playerState memcmp
+            // below cannot see them
+            if (cpp.waterlevel != c.waterlevel || cpp.watertype != c.watertype ||
+                std::memcmp(&cpp.ps, &c.ps, sizeof(playerState_t)) != 0) {
                 firstDiff = i;
             }
         }
@@ -321,7 +424,14 @@ void TestParity() {
                             : Fmt("differs at step %d: c++ (%.3f %.3f %.3f) v %.3f, c (%.3f %.3f %.3f) v %.3f",
                                   firstDiff, cpp.ps.origin[0], cpp.ps.origin[1], cpp.ps.origin[2], cpp.Speed(),
                                   c.ps.origin[0], c.ps.origin[1], c.ps.origin[2], c.Speed()));
+        if (s.name == std::string("parity: wade through a pool")) {
+            Check(maxWater == 2 && cpp.ps.origin[0] > 300,
+                  "parity: the pool gives waterlevel 2 and the player swims out of it",
+                  Fmt("max waterlevel %d, end x %.0f", maxWater, cpp.ps.origin[0]));
+        }
     }
+    g_world.clear();
+    ResetStubs();  // later tests assume dry land
 }
 
 void TestGroundSpeed() {
@@ -391,9 +501,62 @@ void TestAirControl() {
     Check(std::fabs(speed[1] - 400) < 4, "cpm: air control keeps horizontal speed", Fmt("%.1f ups", speed[1]));
 }
 
+// Water: the levels SetWaterLevel computes, wading out of a pool, and the water
+// jump CheckWaterJump launches. Every one of these was dead code while
+// PointContents always returned 0.
+void TestWater() {
+    g_world.clear();
+    ResetStubs();
+    Floor();
+    g_waterZ = 40;  // chest deep for a standing player (box z 0..56)
+    Player shallow(0, 0, 0, kSettledZ);
+    shallow.Step(0, 0, 0, 0);
+    Check(shallow.waterlevel == 2 && shallow.watertype == CONTENTS_WATER,
+          "water: standing chest deep is waterlevel 2",
+          Fmt("level %d, type %d", shallow.waterlevel, shallow.watertype));
+
+    g_waterZ = 100;  // over the player's head
+    Player deep(0, 0, 0, kSettledZ);
+    deep.Step(0, 0, 0, 0);
+    Check(deep.waterlevel == 3, "water: fully submerged is waterlevel 3", Fmt("level %d", deep.waterlevel));
+
+    // wade out: the pool ends at x = 300
+    ResetStubs();
+    g_waterZ = 40;
+    g_waterX = 300;
+    Player out(0, 0, 0, kSettledZ);
+    int inWater = -1;
+    for (int i = 0; i < 400; i++) {
+        out.Step(0, 127, 0, 0);
+        if (inWater < 0 && out.ps.origin[0] > 200) {
+            inWater = out.waterlevel;
+        }
+    }
+    Check(inWater == 2 && out.ps.origin[0] > 320 && out.waterlevel == 0,
+          "water: walking out of the pool clears the waterlevel",
+          Fmt("level %d at x 200, level %d at x %.0f", inWater, out.waterlevel, out.ps.origin[0]));
+
+    // water jump: waterlevel 2 with a low ledge 30 units ahead of the view
+    ResetStubs();
+    g_waterZ = 40;
+    g_wallX = 20;
+    g_wallZ = 32;
+    Player jump(0, 0, 0, kSettledZ);
+    for (int i = 0; i < 5 && !(jump.ps.pm_flags & PMF_TIME_WATERJUMP); i++) {
+        jump.Step(0, 127, 0, 0);
+    }
+    Check((jump.ps.pm_flags & PMF_TIME_WATERJUMP) != 0 && jump.ps.velocity[2] > 330 &&
+              std::fabs(jump.Speed() - 200) < 1,
+          "water: a ledge in front turns into a water jump",
+          Fmt("vz %.0f (350 less two frames), forward %.0f ups, pm_flags %d", jump.ps.velocity[2], jump.Speed(),
+              jump.ps.pm_flags));
+    ResetStubs();
+}
+
 // Jump velocity straight off the ground.
 float JumpVz(int rs, int jumpTimeMs, float vz0 = 0) {
     g_world.clear();
+    ResetStubs();
     Floor();
     Player p(rs, 0, 0, 24);
     p.Step(0, 0, 0, 0);  // settle on the ground
@@ -714,6 +877,7 @@ int main(int argc, char** argv) {
     TestStrafeJump();
     TestAirStrafe();
     TestAirControl();
+    TestWater();
     TestJumps();
     TestDeterminism();
     TestRulesetJson();
