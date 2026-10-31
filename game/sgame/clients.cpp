@@ -253,6 +253,10 @@ void ClientThink(int clientNum) {
     client.ps.stats[skaar::move::kStatRuleset] = level.ruleset;
 
     pmove_t pm{};
+    // Pmove only writes the box from CheckDuck(), which PM_FREEZE and PM_NOCLIP return before:
+    // seed it with the player's box so those pm_types don't collapse the entity to a point
+    VectorCopy(ent.r.mins, pm.mins);
+    VectorCopy(ent.r.maxs, pm.maxs);
     pm.ps = &client.ps;
     pm.cmd = ucmd;
     pm.tracemask = MASK_PLAYERSOLID;
