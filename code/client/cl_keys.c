@@ -1506,7 +1506,10 @@ void CL_LoadConsoleHistory( void )
 
 			numChars = atoi( token );
 			text_p++;
-			if( numChars > ( strlen( consoleSaveBuffer ) -	( text_p - consoleSaveBuffer ) ) )
+			// the copy lands in a MAX_EDIT_LINE field buffer, so bound numChars by
+			// the destination as well as by what is left in the source
+			if( numChars < 0 || numChars >= MAX_EDIT_LINE ||
+					numChars > ( strlen( consoleSaveBuffer ) -	( text_p - consoleSaveBuffer ) ) )
 			{
 				Com_DPrintf( S_COLOR_YELLOW "WARNING: probable corrupt history\n" );
 				break;
