@@ -119,8 +119,15 @@ struct Light {
 };
 
 // Every coordinate is rounded to int32 for the BSP and drives the light-grid
-// size, so bound them here, at the one door floats come in through.
-constexpr float kMaxCoord = 1.0e6f;
+// size, so bound them here, at the one door floats come in through. The grid is
+// 64x64x128 at 8 bytes a point, so +/-16384 (four times the largest shipped
+// map) already asks for ~0.5 GB; the old +/-1e6 asked for 10^14 bytes and died
+// in the allocator instead of reporting a bad map.
+constexpr float kMaxCoord = 16384.0f;
+
+// A room's wall thickness is added to those coordinates, so it needs the same
+// bound: "wall": 3e9 put the room's bounds at +/-3e9 and overflowed int32 below.
+constexpr float kMaxWall = 4096.0f;
 
 Vec3 ReadVec3(const json& j, const char* what) {
     if (!j.is_array() || j.size() != 3) {
@@ -130,7 +137,7 @@ Vec3 ReadVec3(const json& j, const char* what) {
     for (int i = 0; i < 3; i++) {
         const float v = j[i].get<float>();
         if (!std::isfinite(v) || std::fabs(v) > kMaxCoord) {
-            throw std::runtime_error(std::string(what) + " must be finite and within +/-1000000");
+            throw std::runtime_error(std::string(what) + " must be finite and within +/-16384");
         }
         out[i] = v;
     }
@@ -178,8 +185,8 @@ void AddRoom(const json& room, std::vector<Box>& boxes) {
             throw std::runtime_error("room min must be < max on every axis");
         }
     }
-    if (!(t > 0.0f)) {
-        throw std::runtime_error("room wall must be > 0");
+    if (!std::isfinite(t) || t <= 0.0f || t > kMaxWall) {
+        throw std::runtime_error("room wall must be finite, > 0 and within 4096");
     }
 
     boxes.push_back({{mn[0] - t, mn[1] - t, mn[2] - t}, {mx[0] + t, mx[1] + t, mn[2]}, floorMat, {}});
