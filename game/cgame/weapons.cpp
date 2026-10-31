@@ -501,7 +501,10 @@ void DrawHud() {
 
     // current weapon and ammo, bottom right
     if (const skaar::WeaponDef* cur = skaar::WeaponBySlot(ps.weapon)) {
-        const int ammo = ps.ammo[ps.weapon];
+        // ps.ammo travels as signed 16-bit (msg.c), so a weapon file with an
+        // ammo.max above 32767 arrives negative: the low 16 bits are still the
+        // count itself, up to 65535. -1 is sv_infiniteAmmo's marker, not a wrap.
+        const int ammo = ps.ammo[ps.weapon] == -1 ? -1 : (ps.ammo[ps.weapon] & 0xffff);
         float right = w - m;
         if (cur->magazine > 0) {
             // magazine weapons: rounds in the magazine, the reserve beside it
