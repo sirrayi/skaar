@@ -478,10 +478,10 @@ void PlayerEvent(int event, int /*eventParm*/, const playerState_t& ps) {
 }
 
 void DrawHud() {
-    HitBeep();
+    HitBeep();  // hit feedback stays on with the HUD hidden
     const playerState_t& ps = cg.predicted;
-    if (!ps.stats[STAT_WEAPONS] || (trap::Key_GetCatcher() & KEYCATCH_UI)) {
-        return;  // no arena loadout (the trainer, free roam): nothing to show
+    if (!cvars.drawHud.integer || !ps.stats[STAT_WEAPONS] || (trap::Key_GetCatcher() & KEYCATCH_UI)) {
+        return;  // HUD off, no arena loadout (the trainer, free roam), or a menu: nothing to show
     }
     const kit::Fonts& f = kit::GetFonts();
     const float w = kit::Width(), h = kit::Height(), m = theme::kMargin / 2;
